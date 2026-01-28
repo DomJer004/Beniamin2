@@ -583,6 +583,7 @@ if data_sheets:
             full_table = calculate_table(matches_dict)
             team_stats = full_table[full_table['klub'] == selected_team].iloc[0] if not full_table[full_table['klub'] == selected_team].empty else None
 
+            # --- NAGŁÓWEK KLUBU ---
             with st.container():
                 col_logo, col_info, col_form = st.columns([1, 3, 2])
                 with col_logo:
@@ -607,6 +608,7 @@ if data_sheets:
                         st.markdown(form_html, unsafe_allow_html=True)
             st.divider()
 
+            # --- KPI ---
             if not df_p.empty:
                 k1, k2, k3, k4 = st.columns(4)
                 avg_age = df_p['wiek'].mean() if 'wiek' in df_p.columns else 0
@@ -624,11 +626,35 @@ if data_sheets:
 
             with tab_squad:
                 if not df_p.empty:
+                    # Wybór kolumn
                     desired = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'minuty', 'gole', 'asysty', 
-                                     'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne', 'kanadyjka']
+                               'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne', 'kanadyjka']
                     final = [c for c in desired if c in df_p.columns]
-                    disp = df_p[final].rename(columns={'flaga_html': 'Narodowość', 'numer': '#', 'imię i nazwisko': 'Zawodnik', 'kanadyjka': 'Pkt'})
-                    if 'minuty' in disp.columns: disp = disp.sort_values('minuty', ascending=False)
+                    
+                    # Zmiana nazw na takie z emotkami
+                    rename_map = {
+                        'flaga_html': 'Narodowość', 
+                        'numer': '#', 
+                        'imię i nazwisko': 'Zawodnik', 
+                        'pozycja': 'Poz.',
+                        'mecze': 'Mecze 🏟️',
+                        'minuty': 'Minuty ⏱️',
+                        'gole': 'Gole ⚽',
+                        'asysty': 'Asysty 🅰️',
+                        'kanadyjka': 'Kanadyjka (G+A) 🇨🇦',
+                        'żółte kartki': 'Żółte 🟨',
+                        'czerwone kartki': 'Czerwone 🟥',
+                        'czyste konta': 'Czyste Konta 🧤',
+                        'obronione karne': 'Obronione Karne 👐'
+                    }
+                    
+                    disp = df_p[final].rename(columns=rename_map)
+                    
+                    # SORTOWANIE OD NUMERU 1 W GÓRĘ
+                    if '#' in disp.columns:
+                        disp = disp.sort_values('#', ascending=True)
+                    
+                    # Renderowanie tabeli
                     st.markdown(disp.to_html(escape=False, index=False, classes="table table-striped"), unsafe_allow_html=True)
                 else: st.warning("Brak danych.")
 
@@ -709,5 +735,3 @@ if data_sheets:
                                 if lg_g: st.image(lg_g, width=50)
                             st.divider()
                 else: st.info("Brak meczów.")
-else:
-    st.error(f"Nie znaleziono {EXCEL_FILE}")
