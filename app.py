@@ -13,16 +13,14 @@ EXCEL_FILE = "Liga Mistrzów 25_26.xlsx"
 def normalize_key(name):
     """Czyści nazwę do formatu klucza (małe litery, bez spacji)."""
     if not isinstance(name, str): return ""
-    # Usuwamy znaki specjalne, ale zostawiamy litery i cyfry
     return name.strip().lower()
 
-# SŁOWNIK ALIASÓW (Rozwiązuje problem "nie liczą się statystyki")
-# Jeśli nazwa arkusza różni się od nazwy w terminarzu, dodaj tutaj powiązania.
+# SŁOWNIK ALIASÓW (Aktualizacja o "Atlético Madyt")
 TEAM_ALIASES = {
     "paris saint-germain": ["psg", "paris sg"],
     "psg": ["paris saint-germain", "paris sg"],
-    "atlético madryt": ["atletico", "atlético", "atletico madrid", "atl. madryt"],
-    "atletico": ["atlético madryt", "atletico madrid"],
+    "atlético madryt": ["atletico", "atlético", "atletico madrid", "atl. madryt", "atlético madyt", "atletico madyt"],
+    "atletico": ["atlético madryt", "atletico madrid", "atlético madyt"],
     "union saint-gilloise": ["union sg", "usg", "union saint gilloise"],
     "bodø/glimt": ["bodo/glimt", "bodo glimt", "bodo"],
     "bodo/glimt": ["bodø/glimt"],
@@ -59,9 +57,8 @@ def is_same_team(name1, name2):
             
     return False
 
-# ROZSZERZONA BAZA HERBÓW
+# BAZA HERBÓW (Bez zmian)
 CLUB_LOGOS_RAW = {
-    # Specjalne z Twojego zgłoszenia
     "union saint-gilloise": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
     "union sg": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
     "usg": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
@@ -71,8 +68,6 @@ CLUB_LOGOS_RAW = {
     "bodo/glimt": "https://upload.wikimedia.org/wikipedia/en/8/8d/FK_Bodo_Glimt_logo.svg",
     "atlético madryt": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
     "atletico": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
-    
-    # Reszta (Zaktualizowana)
     "monaco": "https://upload.wikimedia.org/wikipedia/fr/5/58/Logo_AS_Monaco_FC_-_2021.svg",
     "as monaco": "https://upload.wikimedia.org/wikipedia/fr/5/58/Logo_AS_Monaco_FC_-_2021.svg",
     "olympiacos": "https://upload.wikimedia.org/wikipedia/en/a/a2/Olympiacos_FC_crest.svg",
@@ -173,7 +168,7 @@ COUNTRY_CODES = {
 }
 
 def get_flag_html(nationality_str):
-    """Generuje HTML z flagami (jedną lub wieloma)."""
+    """Generuje HTML z flagami."""
     if not isinstance(nationality_str, str) or not nationality_str.strip(): return ""
     
     parts = re.split(r'[,/]', nationality_str)
@@ -183,13 +178,10 @@ def get_flag_html(nationality_str):
         clean_nat = normalize_key(part).strip()
         if not clean_nat: continue
         
-        # Manual fix dla Kongo
-        if "konaga" in clean_nat or "konga" in clean_nat: 
-            code = "cd"
+        if "konaga" in clean_nat or "konga" in clean_nat: code = "cd"
         else:
             code = COUNTRY_CODES.get(clean_nat)
             if not code:
-                # Szukanie po fragmencie
                 for k, v in COUNTRY_CODES.items():
                     if k in clean_nat:
                         code = v
@@ -203,24 +195,17 @@ def get_flag_html(nationality_str):
 def get_club_logo_url(club_name):
     if not isinstance(club_name, str): return None
     key = normalize_key(club_name)
-    
-    # Bezpośrednie dopasowanie
     if key in CLUB_LOGOS_RAW: return CLUB_LOGOS_RAW[key]
-    
-    # Szukanie w aliasach
     for main_name, aliases in TEAM_ALIASES.items():
         if key == main_name or key in aliases:
             if main_name in CLUB_LOGOS_RAW: return CLUB_LOGOS_RAW[main_name]
-            
-    # Partial match
     for k, v in CLUB_LOGOS_RAW.items():
         if k in key or key in k: return v
     return None
 
 def get_club_logo_html(club_name):
     url = get_club_logo_url(club_name)
-    if url:
-        return f'<img src="{url}" width="25" style="vertical-align:middle;">'
+    if url: return f'<img src="{url}" width="25" style="vertical-align:middle;">'
     return club_name if club_name else ""
 
 def repair_excel_date_score(value):
@@ -243,7 +228,7 @@ def load_all_data(file_path):
 
 def process_team_sheet(df, team_name):
     try:
-        # Szukanie początku terminarza
+        # Szukanie terminarza
         match_idx = -1
         for idx, row in df.iterrows():
             if row.astype(str).str.contains('kolejka', case=False).any():
@@ -266,30 +251,41 @@ def process_team_sheet(df, team_name):
         else:
             df_players = df_top.copy(); df_staff = pd.DataFrame()
 
-        # Przetwarzanie graczy
+        # Przetwarzanie graczy (Rozszerzone statystyki)
         if not df_players.empty:
             if isinstance(df_players.columns[0], int):
                 df_players.columns = df_players.iloc[0].astype(str).str.lower().str.strip()
                 df_players = df_players[1:]
             df_players.columns = [str(c).lower().strip() for c in df_players.columns]
             
-            # Normalizacja nazw kolumn
             renames = {'t': 'numer', 'nr': 'numer', 'kraj': 'narodowość'}
             df_players.rename(columns=renames, inplace=True)
             
             if 'imię i nazwisko' in df_players.columns: 
                 df_players = df_players.dropna(subset=['imię i nazwisko'])
             
-            # Konwersja liczb na int
-            for col in ['mecze', 'minuty', 'gole', 'asysty', 'żółte kartki', 'kanadyjka', 'wiek']:
+            # Lista wszystkich statystyk do pobrania
+            stats_cols = ['mecze', 'minuty', 'gole', 'asysty', 'żółte kartki', 'czerwone kartki', 
+                          'czyste konta', 'kanadyjka', 'obronione karne', 'gole samobójcze', 'wiek']
+            
+            for col in stats_cols:
                 if col in df_players.columns: 
+                    # Konwersja na int, puste = 0
                     df_players[col] = pd.to_numeric(df_players[col], errors='coerce').fillna(0).astype(int)
             
-            # Generowanie HTML flag
+            # Logika "Czyste konta tylko dla bramkarzy"
+            # Jeśli kolumna 'pozycja' istnieje, czyścimy dane dla nie-bramkarzy
+            if 'pozycja' in df_players.columns:
+                is_gk = df_players['pozycja'].astype(str).str.lower().str.contains('br|gk|bramkarz')
+                if 'czyste konta' in df_players.columns:
+                    df_players.loc[~is_gk, 'czyste konta'] = 0 # Lub można ustawić na None/pusty string do wyświetlania
+                if 'obronione karne' in df_players.columns:
+                    df_players.loc[~is_gk, 'obronione karne'] = 0
+
             if 'narodowość' in df_players.columns:
                 df_players['flaga_html'] = df_players['narodowość'].apply(get_flag_html)
 
-        # Przetwarzanie meczów
+        # Przetwarzanie meczów (Filtrowanie kolumn Info_X)
         df_matches = pd.DataFrame()
         if match_idx < len(df):
             header_row = df.iloc[match_idx]
@@ -299,8 +295,12 @@ def process_team_sheet(df, team_name):
                 val = str(c).strip()
                 col_name = f"Info_{i}" if pd.isna(c) or val == "" or val.lower() == "nan" else val
                 seen[col_name] = seen.get(col_name, 0) + 1
-                new_columns.append(f"{col_name}_{seen[col_name]}" if seen[col_name] > 1 else col_name)
-                indices.append(i)
+                final = f"{col_name}_{seen[col_name]}" if seen[col_name] > 1 else col_name
+                
+                # FILTROWANIE KOLUMN "ŚMIECIOWYCH"
+                if not final.startswith("Info_") and not final.startswith("Extra_"):
+                    new_columns.append(final)
+                    indices.append(i)
             
             df_matches = df.iloc[match_idx+1:, indices].copy()
             df_matches.columns = [str(c).lower().strip() for c in new_columns]
@@ -310,7 +310,7 @@ def process_team_sheet(df, team_name):
     except:
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-# --- 3. AGREGACJA (DLA TABELI I TERMINARZA) ---
+# --- 3. AGREGACJA ---
 
 def aggregate_matches(data_sheets, team_names):
     matches_dict = {}
@@ -319,12 +319,15 @@ def aggregate_matches(data_sheets, team_names):
         _, _, df_m = process_team_sheet(data_sheets[team], team)
         if df_m.empty or 'wynik' not in df_m.columns: continue
         
-        # Kolumny potencjalnie zawierające strzelców
         scorer_cols = [c for c in df_m.columns if any(x in str(c).lower() for x in ['gole', 'strzelcy', 'bramki', 'info', 'extra'])]
         
         for _, row in df_m.iterrows():
             h, g = str(row.get('gospodarze','')).strip(), str(row.get('goście','')).strip()
-            k = str(row.get('kolejka','0')).strip()
+            # FIX: Czyszczenie kolejki, żeby uniknąć duplikatów "1" vs "1.0"
+            raw_k = str(row.get('kolejka','0')).strip()
+            if '.' in raw_k: raw_k = raw_k.split('.')[0]
+            k = raw_k
+            
             raw_res = str(row.get('wynik','')).strip()
             
             if not h or h.lower()=='nan' or not g: continue
@@ -339,27 +342,24 @@ def aggregate_matches(data_sheets, team_names):
                     "Strzelcy_H": [], "Strzelcy_A": []
                 }
             
-            # Zapisz wynik z Excela jeśli istnieje
             if raw_res and raw_res.lower() != 'nan' and raw_res != '-' and matches_dict[mid]["Excel_Res"] is None:
                 matches_dict[mid]["Excel_Res"] = raw_res
 
-            # Sprawdź czy to arkusz Gospodarza czy Gościa (używając is_same_team)
             is_home_sheet = is_same_team(team, h)
             is_away_sheet = is_same_team(team, g)
             
-            # Zbieranie strzelców
             found = []
             for sc in scorer_cols:
-                val = str(row[sc]).strip()
-                if val and val.lower() != 'nan' and len(val) > 2 and not val.isdigit():
-                    for s in re.split(r'[,;]', val): 
-                        if s.strip(): found.append(s.strip())
+                if sc in row: # Sprawdź czy kolumna istnieje w tym wierszu
+                    val = str(row[sc]).strip()
+                    if val and val.lower() != 'nan' and len(val) > 2 and not val.isdigit():
+                        for s in re.split(r'[,;]', val): 
+                            if s.strip(): found.append(s.strip())
             
             target = matches_dict[mid]["Strzelcy_H"] if is_home_sheet else matches_dict[mid]["Strzelcy_A"] if is_away_sheet else None
             if target is not None:
                 for s in found: target.append(s)
 
-    # FINALIZACJA WYNIKÓW
     for mid, data in matches_dict.items():
         ch, ca = len(data["Strzelcy_H"]), len(data["Strzelcy_A"])
         if ch > 0 or ca > 0:
@@ -464,10 +464,8 @@ if data_sheets:
             df_s = data_sheets['Strzelcy']
             df_s.columns = [str(c).lower().strip() for c in df_s.columns]
             
-            # Usunięcie zduplikowanych kolumn z flagami (jeśli były tekstowe)
+            # 1. Narodowość (HTML)
             cols_to_keep = []
-            
-            # Przetwarzanie flagi (HTML)
             if 'kraj' in df_s.columns:
                 df_s['Narodowość'] = df_s['kraj'].apply(get_flag_html)
                 cols_to_keep.append('Narodowość')
@@ -475,24 +473,22 @@ if data_sheets:
                 df_s['Narodowość'] = df_s['narodowość'].apply(get_flag_html)
                 cols_to_keep.append('Narodowość')
 
-            # Przetwarzanie logo klubu (HTML)
+            # 2. Klub (Logo HTML)
             club_col = next((c for c in df_s.columns if c in ['klub', 'zespół', 'drużyna', 'team']), None)
             if club_col:
                 df_s['Klub'] = df_s[club_col].apply(get_club_logo_html)
                 cols_to_keep.append('Klub')
             
-            # Reszta kolumn (Dane)
+            # 3. Reszta Danych (Int)
             ignored = ['kraj', 'narodowość', 'flaga_url', 'info', 'uwagi', club_col]
             data_cols = [c for c in df_s.columns if c not in ignored and c not in cols_to_keep]
             
-            # Konwersja na int (brak .0)
             for col in data_cols:
                 if pd.api.types.is_numeric_dtype(df_s[col]):
                     df_s[col] = df_s[col].fillna(0).astype(int)
             
             final_cols = cols_to_keep + data_cols
             
-            # Wyświetlanie jako HTML (dla obsługi obrazków)
             st.markdown(df_s[final_cols].to_html(escape=False, index=False), unsafe_allow_html=True)
         else: st.warning("Brak arkusza Strzelcy.")
 
@@ -509,14 +505,18 @@ if data_sheets:
             
             tab1, tab2, tab3 = st.tabs(["👥 Kadra", "📊 Statystyki", "📅 Mecze"])
             
-            with tab1:
+            with tab1: # KADRA (Rozszerzona)
                 if not df_p.empty:
-                    # Wybór kolumn
-                    base = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'gole', 'asysty', 'minuty']
-                    cols = [c for c in base if c in df_p.columns]
+                    # Lista kolumn w pożądanej kolejności
+                    desired_order = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'minuty', 'gole', 'asysty', 
+                                     'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne', 'kanadyjka']
                     
-                    # Konwersja wizualna
-                    disp = df_p[cols].rename(columns={'flaga_html': 'Narodowość', 'numer': '#'})
+                    final_cols = [c for c in desired_order if c in df_p.columns]
+                    
+                    disp = df_p[final_cols].rename(columns={'flaga_html': 'Narodowość', 'numer': '#'})
+                    
+                    # Warunkowe formatowanie dla BR (można to zrobić w HTML)
+                    # Tutaj po prostu wyświetlamy
                     st.markdown(disp.to_html(escape=False, index=False), unsafe_allow_html=True)
             
             with tab2:
