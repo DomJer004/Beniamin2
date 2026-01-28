@@ -15,7 +15,7 @@ def normalize_key(name):
     if not isinstance(name, str): return ""
     return name.strip().lower()
 
-# SŁOWNIK ALIASÓW (Aktualizacja o "Atlético Madyt")
+# SŁOWNIK ALIASÓW
 TEAM_ALIASES = {
     "paris saint-germain": ["psg", "paris sg"],
     "psg": ["paris saint-germain", "paris sg"],
@@ -57,17 +57,21 @@ def is_same_team(name1, name2):
             
     return False
 
-# BAZA HERBÓW (Bez zmian)
+# BAZA HERBÓW (ZAKTUALIZOWANA)
 CLUB_LOGOS_RAW = {
-    "union saint-gilloise": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
-    "union sg": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
-    "usg": "https://upload.wikimedia.org/wikipedia/en/6/64/Royale_Union_Saint-Gilloise_Logo.svg",
+    # NOWE LINKI Z PROŚBY
+    "union saint-gilloise": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
+    "union sg": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
+    "usg": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
+    "atlético madryt": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
+    "atletico": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
+    "atlético madyt": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
+    
+    # POZOSTAŁE (BEZ ZMIAN)
     "paris saint-germain": "https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg",
     "psg": "https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg",
     "bodø/glimt": "https://upload.wikimedia.org/wikipedia/en/8/8d/FK_Bodo_Glimt_logo.svg",
     "bodo/glimt": "https://upload.wikimedia.org/wikipedia/en/8/8d/FK_Bodo_Glimt_logo.svg",
-    "atlético madryt": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
-    "atletico": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
     "monaco": "https://upload.wikimedia.org/wikipedia/fr/5/58/Logo_AS_Monaco_FC_-_2021.svg",
     "as monaco": "https://upload.wikimedia.org/wikipedia/fr/5/58/Logo_AS_Monaco_FC_-_2021.svg",
     "olympiacos": "https://upload.wikimedia.org/wikipedia/en/a/a2/Olympiacos_FC_crest.svg",
@@ -132,7 +136,6 @@ CLUB_LOGOS_RAW = {
     "slovan": "https://upload.wikimedia.org/wikipedia/en/8/8b/Slovan_Bratislava_logo.svg"
 }
 
-# KOMPLETNA LISTA KODÓW FLAG
 COUNTRY_CODES = {
     # Europa
     "anglia": "gb-eng", "szkocja": "gb-sct", "walia": "gb-wls", "polska": "pl", "hiszpania": "es", 
@@ -145,22 +148,14 @@ COUNTRY_CODES = {
     "czarnogóra": "me", "macedonia": "mk", "macedonia północna": "mk", "kosowo": "xk",
     "mołdawia": "md", "białoruś": "by", "estonia": "ee", "litwa": "lt", "łotwa": "lv",
     "luksemburg": "lu", "malta": "mt", "rosja": "ru",
-    
-    # Ameryka Płd
     "brazylia": "br", "argentyna": "ar", "urugwaj": "uy", "kolumbia": "co", "chile": "cl",
     "ekwador": "ec", "paragwaj": "py", "wenezuela": "ve", "peru": "pe", "boliwia": "bo",
-    
-    # Ameryka Płn
     "usa": "us", "meksyk": "mx", "kanada": "ca", "jamajka": "jm", "kostaryka": "cr",
     "panama": "pa", "honduras": "hn", "surinam": "sr",
-    
-    # Azja
     "japonia": "jp", "korea": "kr", "korea południowa": "kr", "chiny": "cn", "iran": "ir",
     "izrael": "il", "gruzja": "ge", "armenia": "am", "azerbejdżan": "az", "kazachstan": "kz",
     "uzbekistan": "uz", "arabia saudyjska": "sa", "katar": "qa", "zjednoczone emiraty arabskie": "ae",
     "australia": "au",
-    
-    # Afryka
     "maroko": "ma", "senegal": "sn", "egipt": "eg", "wybrzeże kości słoniowej": "ci", "wks": "ci",
     "kamerun": "cm", "ghana": "gh", "nigeria": "ng", "algieria": "dz", "tunezja": "tn",
     "mali": "ml", "gwinea": "gn", "burkina faso": "bf", "gabon": "ga", "rpa": "za",
@@ -168,16 +163,12 @@ COUNTRY_CODES = {
 }
 
 def get_flag_html(nationality_str):
-    """Generuje HTML z flagami."""
     if not isinstance(nationality_str, str) or not nationality_str.strip(): return ""
-    
     parts = re.split(r'[,/]', nationality_str)
     html_out = ""
-    
     for part in parts:
         clean_nat = normalize_key(part).strip()
         if not clean_nat: continue
-        
         if "konaga" in clean_nat or "konga" in clean_nat: code = "cd"
         else:
             code = COUNTRY_CODES.get(clean_nat)
@@ -186,10 +177,8 @@ def get_flag_html(nationality_str):
                     if k in clean_nat:
                         code = v
                         break
-        
         if code:
             html_out += f'<img src="https://flagcdn.com/w40/{code}.png" width="22" style="margin-right:4px; vertical-align:middle; border:1px solid #ddd; border-radius:2px;">'
-            
     return html_out
 
 def get_club_logo_url(club_name):
@@ -226,9 +215,28 @@ def load_all_data(file_path):
     try: return pd.read_excel(file_path, sheet_name=None, engine='openpyxl')
     except: return None
 
+# Helper: Mapa Zawodnik -> Klub
+def build_player_club_map(data_sheets, team_names):
+    player_map = {}
+    for team in team_names:
+        df = data_sheets[team]
+        # Szybkie szukanie początku tabeli piłkarzy
+        start_idx = 0
+        if isinstance(df.columns[0], int): # Jeżeli nagłówek nie wczytał się w 1. linii
+             df.columns = df.iloc[0].astype(str).str.lower().str.strip()
+             df = df[1:]
+        
+        # Szukamy kolumny z nazwiskiem
+        name_col = next((c for c in df.columns if 'imię i nazwisko' in str(c).lower()), None)
+        if name_col:
+            for _, row in df.iterrows():
+                p_name = str(row[name_col]).strip()
+                if p_name and p_name.lower() != 'nan':
+                     player_map[p_name.lower()] = team
+    return player_map
+
 def process_team_sheet(df, team_name):
     try:
-        # Szukanie terminarza
         match_idx = -1
         for idx, row in df.iterrows():
             if row.astype(str).str.contains('kolejka', case=False).any():
@@ -237,7 +245,6 @@ def process_team_sheet(df, team_name):
         
         df_top = df.iloc[:match_idx].copy()
         
-        # Szukanie sztabu
         staff_idx = -1
         for idx, row in df_top.iterrows():
             if row.astype(str).str.contains('funkcja|rola', case=False, regex=True).any():
@@ -251,7 +258,6 @@ def process_team_sheet(df, team_name):
         else:
             df_players = df_top.copy(); df_staff = pd.DataFrame()
 
-        # Przetwarzanie graczy (Rozszerzone statystyki)
         if not df_players.empty:
             if isinstance(df_players.columns[0], int):
                 df_players.columns = df_players.iloc[0].astype(str).str.lower().str.strip()
@@ -264,28 +270,23 @@ def process_team_sheet(df, team_name):
             if 'imię i nazwisko' in df_players.columns: 
                 df_players = df_players.dropna(subset=['imię i nazwisko'])
             
-            # Lista wszystkich statystyk do pobrania
             stats_cols = ['mecze', 'minuty', 'gole', 'asysty', 'żółte kartki', 'czerwone kartki', 
                           'czyste konta', 'kanadyjka', 'obronione karne', 'gole samobójcze', 'wiek']
             
             for col in stats_cols:
                 if col in df_players.columns: 
-                    # Konwersja na int, puste = 0
                     df_players[col] = pd.to_numeric(df_players[col], errors='coerce').fillna(0).astype(int)
             
-            # Logika "Czyste konta tylko dla bramkarzy"
-            # Jeśli kolumna 'pozycja' istnieje, czyścimy dane dla nie-bramkarzy
             if 'pozycja' in df_players.columns:
                 is_gk = df_players['pozycja'].astype(str).str.lower().str.contains('br|gk|bramkarz')
                 if 'czyste konta' in df_players.columns:
-                    df_players.loc[~is_gk, 'czyste konta'] = 0 # Lub można ustawić na None/pusty string do wyświetlania
+                    df_players.loc[~is_gk, 'czyste konta'] = 0
                 if 'obronione karne' in df_players.columns:
                     df_players.loc[~is_gk, 'obronione karne'] = 0
 
             if 'narodowość' in df_players.columns:
                 df_players['flaga_html'] = df_players['narodowość'].apply(get_flag_html)
 
-        # Przetwarzanie meczów (Filtrowanie kolumn Info_X)
         df_matches = pd.DataFrame()
         if match_idx < len(df):
             header_row = df.iloc[match_idx]
@@ -296,8 +297,6 @@ def process_team_sheet(df, team_name):
                 col_name = f"Info_{i}" if pd.isna(c) or val == "" or val.lower() == "nan" else val
                 seen[col_name] = seen.get(col_name, 0) + 1
                 final = f"{col_name}_{seen[col_name]}" if seen[col_name] > 1 else col_name
-                
-                # FILTROWANIE KOLUMN "ŚMIECIOWYCH"
                 if not final.startswith("Info_") and not final.startswith("Extra_"):
                     new_columns.append(final)
                     indices.append(i)
@@ -323,7 +322,6 @@ def aggregate_matches(data_sheets, team_names):
         
         for _, row in df_m.iterrows():
             h, g = str(row.get('gospodarze','')).strip(), str(row.get('goście','')).strip()
-            # FIX: Czyszczenie kolejki, żeby uniknąć duplikatów "1" vs "1.0"
             raw_k = str(row.get('kolejka','0')).strip()
             if '.' in raw_k: raw_k = raw_k.split('.')[0]
             k = raw_k
@@ -350,7 +348,7 @@ def aggregate_matches(data_sheets, team_names):
             
             found = []
             for sc in scorer_cols:
-                if sc in row: # Sprawdź czy kolumna istnieje w tym wierszu
+                if sc in row:
                     val = str(row[sc]).strip()
                     if val and val.lower() != 'nan' and len(val) > 2 and not val.isdigit():
                         for s in re.split(r'[,;]', val): 
@@ -359,6 +357,21 @@ def aggregate_matches(data_sheets, team_names):
             target = matches_dict[mid]["Strzelcy_H"] if is_home_sheet else matches_dict[mid]["Strzelcy_A"] if is_away_sheet else None
             if target is not None:
                 for s in found: target.append(s)
+
+    # Manualny wpis wyniku dla Ajax vs Benfica (jeśli brak)
+    # Szukamy meczu Ajax vs Benfica
+    ajax_benfica_key = None
+    for mid in matches_dict.keys():
+        if ("ajax" in mid.lower() and "benfica" in mid.lower()):
+            ajax_benfica_key = mid
+            break
+            
+    if ajax_benfica_key:
+        # Sprawdzamy kto jest gospodarzem
+        is_ajax_home = "ajax" in matches_dict[ajax_benfica_key]["Gospodarze"].lower()
+        # Jeśli wynik jest pusty, wstawiamy 0-2 (dla Ajaxu DOM) lub 2-0 (Benfica DOM)
+        if matches_dict[ajax_benfica_key]["Wynik"] == "-" and matches_dict[ajax_benfica_key]["Excel_Res"] is None:
+            matches_dict[ajax_benfica_key]["Excel_Res"] = "0-2" if is_ajax_home else "2-0"
 
     for mid, data in matches_dict.items():
         ch, ca = len(data["Strzelcy_H"]), len(data["Strzelcy_A"])
@@ -416,6 +429,10 @@ if data_sheets:
     st.sidebar.title("Menu")
     sheet_names = list(data_sheets.keys())
     team_names = sorted([n for n in sheet_names if n not in ['Tabela', 'Strzelcy', 'Legenda', 'Info']])
+    
+    # Budowa mapy piłkarzy dla Strzelców
+    player_club_map = build_player_club_map(data_sheets, team_names)
+    
     matches_dict = aggregate_matches(data_sheets, team_names)
     
     page = st.sidebar.radio("Wybierz widok", ["🏆 Tabela Ligowa", "📅 Terminarz", "🎯 Strzelcy", "⚽ Drużyny"])
@@ -464,8 +481,15 @@ if data_sheets:
             df_s = data_sheets['Strzelcy']
             df_s.columns = [str(c).lower().strip() for c in df_s.columns]
             
-            # 1. Narodowość (HTML)
-            cols_to_keep = []
+            # Próba przypisania klubu na podstawie nazwiska
+            if 'imię i nazwisko' in df_s.columns:
+                def get_club_for_player(name):
+                    return player_club_map.get(str(name).strip().lower(), None)
+                df_s['Klub'] = df_s['imię i nazwisko'].apply(get_club_for_player)
+                df_s['Klub_Logo'] = df_s['Klub'].apply(get_club_logo_html)
+            
+            # Narodowość (HTML)
+            cols_to_keep = ['Klub_Logo']
             if 'kraj' in df_s.columns:
                 df_s['Narodowość'] = df_s['kraj'].apply(get_flag_html)
                 cols_to_keep.append('Narodowość')
@@ -473,14 +497,8 @@ if data_sheets:
                 df_s['Narodowość'] = df_s['narodowość'].apply(get_flag_html)
                 cols_to_keep.append('Narodowość')
 
-            # 2. Klub (Logo HTML)
-            club_col = next((c for c in df_s.columns if c in ['klub', 'zespół', 'drużyna', 'team']), None)
-            if club_col:
-                df_s['Klub'] = df_s[club_col].apply(get_club_logo_html)
-                cols_to_keep.append('Klub')
-            
-            # 3. Reszta Danych (Int)
-            ignored = ['kraj', 'narodowość', 'flaga_url', 'info', 'uwagi', club_col]
+            # Reszta Danych (Usuwamy 'numer', 'klub', 'kraj' itp bo mamy lepsze wersje)
+            ignored = ['numer', 'nr', 'kraj', 'narodowość', 'flaga_url', 'info', 'uwagi', 'Klub', 'Klub_Logo']
             data_cols = [c for c in df_s.columns if c not in ignored and c not in cols_to_keep]
             
             for col in data_cols:
@@ -494,37 +512,225 @@ if data_sheets:
 
     elif page == "⚽ Drużyny":
         st.title("Profil Drużyny")
-        sel = st.sidebar.selectbox("Klub", team_names)
-        if sel:
-            df_p, _, df_m = process_team_sheet(data_sheets[sel], sel)
+        
+        # Wybór drużyny w Sidebarze dla czystszego layoutu
+        selected_team = st.sidebar.selectbox("Wybierz Klub", team_names)
+        
+        if selected_team:
+            # Pobranie danych
+            df_p, df_s, df_m_raw = process_team_sheet(data_sheets[selected_team], selected_team)
             
-            c1, c2 = st.columns([1, 5])
-            with c1: 
-                if get_club_logo_url(sel): st.image(get_club_logo_url(sel), width=100)
-            with c2: st.header(sel)
-            
-            tab1, tab2, tab3 = st.tabs(["👥 Kadra", "📊 Statystyki", "📅 Mecze"])
-            
-            with tab1: # KADRA (Rozszerzona)
+            # Pobranie statystyk ligowych z tabeli głównej
+            full_table = calculate_table(matches_dict)
+            team_stats = full_table[full_table['klub'] == selected_team].iloc[0] if not full_table[full_table['klub'] == selected_team].empty else None
+
+            # --- NAGŁÓWEK KLUBU ---
+            with st.container():
+                col_logo, col_info, col_form = st.columns([1, 3, 2])
+                
+                with col_logo:
+                    logo_url = get_club_logo_url(selected_team)
+                    if logo_url:
+                        st.image(logo_url, width=130)
+                    else:
+                        st.header("⚽")
+
+                with col_info:
+                    st.title(selected_team)
+                    if team_stats is not None:
+                        st.markdown(f"**Miejsce:** `{team_stats['Miejsce']}` | **Punkty:** `{team_stats['punkty']}`")
+                        st.markdown(f"**Bilans:** {team_stats['wygrane']}W - {team_stats['remisy']}R - {team_stats['porażki']}P")
+                        st.markdown(f"**Bramki:** {team_stats['strzelone']} ⚽ - {team_stats['stracone']} 🥅")
+
+                with col_form:
+                    if team_stats is not None:
+                        st.caption("Forma (ostatnie 5 meczów):")
+                        # Parsowanie formy na ładne badge
+                        form_html = ""
+                        for char in team_stats['forma']:
+                            if "✅" in char: color = "#28a745" # Zielony
+                            elif "➖" in char: color = "#ffc107" # Żółty
+                            else: color = "#dc3545" # Czerwony
+                            form_html += f"<span style='background-color:{color}; color:white; padding:5px 10px; border-radius:5px; margin-right:5px; font-weight:bold'>{char}</span>"
+                        st.markdown(form_html, unsafe_allow_html=True)
+
+            st.divider()
+
+            # --- KPI (KLUCZOWE WSKAŹNIKI) ---
+            if not df_p.empty:
+                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                
+                # 1. Średnia wieku
+                avg_age = df_p['wiek'].mean() if 'wiek' in df_p.columns else 0
+                kpi1.metric("Średnia Wieku", f"{avg_age:.1f} lat")
+                
+                # 2. Liczba zawodników
+                kpi2.metric("Kadra", f"{len(df_p)} piłkarzy")
+                
+                # 3. Top Strzelec
+                top_scorer = "-"
+                top_goals = 0
+                if 'gole' in df_p.columns:
+                    best = df_p.sort_values(['gole', 'minuty'], ascending=[False, True]).iloc[0]
+                    if best['gole'] > 0:
+                        top_scorer = best['imię i nazwisko']
+                        top_goals = best['gole']
+                kpi3.metric("Najlepszy Strzelec", top_scorer, f"{top_goals} goli")
+                
+                # 4. Czyste konta (Suma)
+                clean_sheets = df_p['czyste konta'].sum() if 'czyste konta' in df_p.columns else 0
+                kpi4.metric("Czyste Konta", clean_sheets)
+
+            # --- ZAKŁADKI ---
+            tab_squad, tab_analysis, tab_matches = st.tabs(["👥 Kadra", "📊 Analiza i Wykresy", "📅 Mecze (Wizualnie)"])
+
+            # 1. ZAKŁADKA KADRA
+            with tab_squad:
                 if not df_p.empty:
-                    # Lista kolumn w pożądanej kolejności
-                    desired_order = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'minuty', 'gole', 'asysty', 
-                                     'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne', 'kanadyjka']
+                    # Wybór i formatowanie kolumn
+                    desired_cols = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'wiek', 'mecze', 'minuty', 
+                                    'gole', 'asysty', 'kanadyjka', 'żółte kartki', 'czerwone kartki']
+                    if 'czyste konta' in df_p.columns: desired_cols.append('czyste konta')
+                    if 'obronione karne' in df_p.columns: desired_cols.append('obronione karne')
                     
-                    final_cols = [c for c in desired_order if c in df_p.columns]
+                    final_cols = [c for c in desired_cols if c in df_p.columns]
                     
-                    disp = df_p[final_cols].rename(columns={'flaga_html': 'Narodowość', 'numer': '#'})
+                    disp_df = df_p[final_cols].rename(columns={
+                        'flaga_html': 'Kraj', 
+                        'numer': '#', 
+                        'imię i nazwisko': 'Zawodnik',
+                        'kanadyjka': 'Pkt (G+A)'
+                    })
                     
-                    # Warunkowe formatowanie dla BR (można to zrobić w HTML)
-                    # Tutaj po prostu wyświetlamy
-                    st.markdown(disp.to_html(escape=False, index=False), unsafe_allow_html=True)
-            
-            with tab2:
-                if not df_p.empty and 'gole' in df_p.columns:
-                    sc = df_p[df_p['gole']>0].sort_values('gole')
-                    if not sc.empty: st.plotly_chart(px.bar(sc, x='gole', y='imię i nazwisko', orientation='h', title="Strzelcy"), use_container_width=True)
-            
-            with tab3:
-                if not df_m.empty: st.dataframe(df_m, use_container_width=True, hide_index=True)
-else:
-    st.error(f"Nie znaleziono {EXCEL_FILE}")
+                    # Sortowanie domyślne (po minutach lub numerze)
+                    if 'minuty' in disp_df.columns:
+                        disp_df = disp_df.sort_values('minuty', ascending=False)
+                    
+                    st.markdown(disp_df.to_html(escape=False, index=False, classes="table table-striped"), unsafe_allow_html=True)
+                else:
+                    st.warning("Brak danych o kadrze.")
+
+            # 2. ZAKŁADKA ANALIZA
+            with tab_analysis:
+                if not df_p.empty:
+                    col_charts_1, col_charts_2 = st.columns(2)
+                    
+                    with col_charts_1:
+                        st.subheader("⚽ Najlepsi Strzelcy")
+                        if 'gole' in df_p.columns:
+                            scorers = df_p[df_p['gole'] > 0].sort_values('gole', ascending=True)
+                            if not scorers.empty:
+                                fig = px.bar(scorers, x='gole', y='imię i nazwisko', orientation='h', text='gole',
+                                             color='gole', color_continuous_scale='Reds')
+                                fig.update_layout(yaxis_title=None, xaxis_title=None, showlegend=False)
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("Brak strzelców.")
+                    
+                    with col_charts_2:
+                        st.subheader("🅰️ Punktacja Kanadyjska (Gole + Asysty)")
+                        if 'kanadyjka' in df_p.columns:
+                            canadians = df_p[df_p['kanadyjka'] > 0].sort_values('kanadyjka', ascending=True).tail(10)
+                            if not canadians.empty:
+                                fig = px.bar(canadians, x='kanadyjka', y='imię i nazwisko', orientation='h', text='kanadyjka',
+                                             color='kanadyjka', color_continuous_scale='Teal')
+                                fig.update_layout(yaxis_title=None, xaxis_title=None, showlegend=False)
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("Brak punktów.")
+
+                    st.divider()
+                    
+                    c3, c4 = st.columns(2)
+                    with c3:
+                        st.subheader("⏳ Czas Gry (Top 10)")
+                        if 'minuty' in df_p.columns:
+                            mins = df_p.nlargest(10, 'minuty').sort_values('minuty', ascending=True)
+                            fig = px.bar(mins, x='minuty', y='imię i nazwisko', orientation='h', text='minuty',
+                                         color='minuty', color_continuous_scale='Blues')
+                            fig.update_layout(yaxis_title=None, xaxis_title=None, showlegend=False)
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    with c4:
+                        st.subheader("⚡ Efektywność (Minuty vs Gole)")
+                        if 'minuty' in df_p.columns and 'gole' in df_p.columns:
+                            scatter_data = df_p[df_p['gole'] > 0]
+                            if not scatter_data.empty:
+                                fig = px.scatter(scatter_data, x='minuty', y='gole', size='gole', hover_name='imię i nazwisko',
+                                                 color='pozycja', title="Kto strzela często, grając mało?")
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("Za mało danych do wykresu scatter.")
+
+            # 3. ZAKŁADKA MECZE (WIZUALNA)
+            with tab_matches:
+                st.subheader("Rozegrane i Planowane Mecze")
+                
+                # Filtrujemy mecze z globalnego słownika matches_dict, gdzie gra wybrana drużyna
+                team_matches = []
+                for mid, data in matches_dict.items():
+                    h, g = data['Gospodarze'], data['Goście']
+                    # Używamy helpera is_same_team, żeby złapać aliasy
+                    if is_same_team(selected_team, h) or is_same_team(selected_team, g):
+                        team_matches.append(data)
+                
+                # Sortowanie po kolejce
+                team_matches = sorted(team_matches, key=lambda x: x['Kolejka'])
+                
+                if team_matches:
+                    for m in team_matches:
+                        h, g = m['Gospodarze'], m['Goście']
+                        res = m['Wynik']
+                        kolejka = m['Kolejka']
+                        
+                        # Pobieramy loga
+                        logo_h = get_club_logo_url(h)
+                        logo_g = get_club_logo_url(g)
+                        
+                        # Ustalamy kolor wyniku dla wybranej drużyny
+                        bg_color = "#e0e0e0" # Domyślny (Remis/Brak)
+                        
+                        # Sprawdzamy wynik jeśli jest liczbowy
+                        if '-' in res and res != "-":
+                            try:
+                                hg, ag = map(int, res.split('-'))
+                                if is_same_team(selected_team, h): # My jesteśmy Gospodarzem
+                                    if hg > ag: bg_color = "#d4edda" # Win (Green)
+                                    elif hg < ag: bg_color = "#f8d7da" # Loss (Red)
+                                    else: bg_color = "#fff3cd" # Draw (Yellow)
+                                elif is_same_team(selected_team, g): # My jesteśmy Gościem
+                                    if ag > hg: bg_color = "#d4edda" # Win
+                                    elif ag < hg: bg_color = "#f8d7da" # Loss
+                                    else: bg_color = "#fff3cd" # Draw
+                            except: pass
+
+                        # Renderowanie karty meczu
+                        with st.container():
+                            st.markdown(f"**Kolejka {kolejka}**")
+                            c1, c2, c3, c4, c5 = st.columns([1, 4, 2, 4, 1])
+                            
+                            with c1: 
+                                if logo_h: st.image(logo_h, width=40)
+                            
+                            with c2:
+                                align = "right"
+                                weight = "bold" if is_same_team(selected_team, h) else "normal"
+                                st.markdown(f"<div style='text-align:{align}; font-weight:{weight}; line-height:40px'>{h}</div>", unsafe_allow_html=True)
+                            
+                            with c3:
+                                st.markdown(f"""
+                                <div style='background-color:{bg_color}; border-radius:10px; text-align:center; padding:5px; font-weight:bold; border:1px solid #ccc'>
+                                {res}
+                                </div>""", unsafe_allow_html=True)
+                            
+                            with c4:
+                                align = "left"
+                                weight = "bold" if is_same_team(selected_team, g) else "normal"
+                                st.markdown(f"<div style='text-align:{align}; font-weight:{weight}; line-height:40px'>{g}</div>", unsafe_allow_html=True)
+                            
+                            with c5:
+                                if logo_g: st.image(logo_g, width=40)
+                            
+                            st.divider()
+                else:
+                    st.info("Brak meczów dla tej drużyny w terminarzu.")
