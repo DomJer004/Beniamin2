@@ -608,19 +608,27 @@ if data_sheets:
                         st.markdown(form_html, unsafe_allow_html=True)
             st.divider()
 
-            # --- KPI ---
+            # --- KPI (Wskaźniki z emotkami) ---
             if not df_p.empty:
                 k1, k2, k3, k4 = st.columns(4)
+                
+                # Średnia wieku
                 avg_age = df_p['wiek'].mean() if 'wiek' in df_p.columns else 0
-                k1.metric("Średnia Wieku", f"{avg_age:.1f}")
-                k2.metric("Kadra", f"{len(df_p)}")
+                k1.metric("Średnia Wieku 🎂", f"{avg_age:.1f}")
+                
+                # Liczba graczy
+                k2.metric("Kadra 👥", f"{len(df_p)}")
+                
+                # Najlepszy strzelec
                 top_s, top_g = "-", 0
                 if 'gole' in df_p.columns:
                     best = df_p.sort_values(['gole', 'minuty'], ascending=[False, True]).iloc[0]
                     if best['gole'] > 0: top_s, top_g = best['imię i nazwisko'], best['gole']
-                k3.metric("Najlepszy Strzelec", top_s, f"{top_g} goli")
+                k3.metric("Najlepszy Strzelec 🎯", top_s, f"{top_g} goli")
+                
+                # Czyste konta
                 cs = df_p['czyste konta'].sum() if 'czyste konta' in df_p.columns else 0
-                k4.metric("Czyste Konta", cs)
+                k4.metric("Czyste Konta 🧤", cs)
 
             tab_squad, tab_analysis, tab_matches = st.tabs(["👥 Kadra", "📊 Analiza", "📅 Mecze (Wizualnie)"])
 
@@ -628,10 +636,11 @@ if data_sheets:
                 if not df_p.empty:
                     # Wybór kolumn
                     desired = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'minuty', 'gole', 'asysty', 
-                               'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne', 'kanadyjka']
+                               'kanadyjka', 'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne']
+                    
                     final = [c for c in desired if c in df_p.columns]
                     
-                    # Zmiana nazw na takie z emotkami
+                    # --- MAPA NAZW KOLUMN Z EMOTKAMI ---
                     rename_map = {
                         'flaga_html': 'Narodowość', 
                         'numer': '#', 
@@ -641,7 +650,7 @@ if data_sheets:
                         'minuty': 'Minuty ⏱️',
                         'gole': 'Gole ⚽',
                         'asysty': 'Asysty 🅰️',
-                        'kanadyjka': 'Kanadyjka (G+A) 🇨🇦',
+                        'kanadyjka': 'Kanadyjka (⚽+🅰️)', # Zmiana o którą prosiłeś
                         'żółte kartki': 'Żółte 🟨',
                         'czerwone kartki': 'Czerwone 🟥',
                         'czyste konta': 'Czyste Konta 🧤',
@@ -650,11 +659,11 @@ if data_sheets:
                     
                     disp = df_p[final].rename(columns=rename_map)
                     
-                    # SORTOWANIE OD NUMERU 1 W GÓRĘ
+                    # Sortowanie po numerze (od 1 w górę)
                     if '#' in disp.columns:
                         disp = disp.sort_values('#', ascending=True)
                     
-                    # Renderowanie tabeli
+                    # Renderowanie tabeli HTML
                     st.markdown(disp.to_html(escape=False, index=False, classes="table table-striped"), unsafe_allow_html=True)
                 else: st.warning("Brak danych.")
 
@@ -664,24 +673,24 @@ if data_sheets:
                     with c1:
                         if 'gole' in df_p.columns:
                             sc = df_p[df_p['gole']>0].sort_values('gole')
-                            if not sc.empty: st.plotly_chart(px.bar(sc, x='gole', y='imię i nazwisko', orientation='h', title="Strzelcy", color='gole'), use_container_width=True)
+                            if not sc.empty: st.plotly_chart(px.bar(sc, x='gole', y='imię i nazwisko', orientation='h', title="Strzelcy ⚽", color='gole'), use_container_width=True)
                     with c2:
                         if 'kanadyjka' in df_p.columns:
                             can = df_p[df_p['kanadyjka']>0].sort_values('kanadyjka').tail(10)
-                            if not can.empty: st.plotly_chart(px.bar(can, x='kanadyjka', y='imię i nazwisko', orientation='h', title="Kanadyjka", color='kanadyjka'), use_container_width=True)
+                            if not can.empty: st.plotly_chart(px.bar(can, x='kanadyjka', y='imię i nazwisko', orientation='h', title="Kanadyjka (⚽+🅰️)", color='kanadyjka'), use_container_width=True)
                     st.divider()
                     c3, c4 = st.columns(2)
                     with c3:
                         if 'minuty' in df_p.columns:
                             mins = df_p.nlargest(10, 'minuty').sort_values('minuty')
-                            st.plotly_chart(px.bar(mins, x='minuty', y='imię i nazwisko', orientation='h', title="Czas Gry"), use_container_width=True)
+                            st.plotly_chart(px.bar(mins, x='minuty', y='imię i nazwisko', orientation='h', title="Czas Gry ⏱️"), use_container_width=True)
                     with c4:
                         if 'minuty' in df_p.columns and 'gole' in df_p.columns:
                             scat = df_p[df_p['gole']>0]
-                            if not scat.empty: st.plotly_chart(px.scatter(scat, x='minuty', y='gole', size='gole', hover_name='imię i nazwisko', color='pozycja', title="Efektywność"), use_container_width=True)
+                            if not scat.empty: st.plotly_chart(px.scatter(scat, x='minuty', y='gole', size='gole', hover_name='imię i nazwisko', color='pozycja', title="Efektywność ⚡"), use_container_width=True)
 
             with tab_matches:
-                st.subheader("Terminarz")
+                st.subheader("Terminarz 📅")
                 team_matches = []
                 for mid, data in matches_dict.items():
                     h, g = data['Gospodarze'], data['Goście']
