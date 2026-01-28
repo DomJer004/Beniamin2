@@ -481,19 +481,23 @@ if data_sheets:
             else: st.info("Brak kolejek.")
 
     elif page == "🎯 Strzelcy":
-        # --- FIX: Dodajemy Bilbao i inne brakujące herby na sztywno ---
+        # --- FIX: WYMUSZENIE HERBÓW (W TYM BILBAO) ---
+        # Aktualizujemy słownik globalny, żeby mieć pewność
         CLUB_LOGOS_RAW.update({
             "athletic": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
             "athletic club": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
             "bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
             "bologna": "https://upload.wikimedia.org/wikipedia/en/5/5b/Bologna_F.C._1909_logo.svg",
-            "sturm": "https://upload.wikimedia.org/wikipedia/commons/c/cc/SK_Sturm_Graz_Logo.svg"
+            "sturm": "https://upload.wikimedia.org/wikipedia/commons/c/cc/SK_Sturm_Graz_Logo.svg",
+            "brest": "https://upload.wikimedia.org/wikipedia/en/0/05/Stade_Brestois_29_logo.svg",
+            "shakhtar": "https://upload.wikimedia.org/wikipedia/en/a/a1/FC_Shakhtar_Donetsk.svg"
         })
 
         st.markdown("## 🎯 Najskuteczniejsi Strzelcy Ligi Mistrzów")
         
         if 'Strzelcy' in data_sheets:
             df_s = data_sheets['Strzelcy']
+            # Czyszczenie nazw kolumn
             df_s.columns = [str(c).lower().strip() for c in df_s.columns]
             
             # --- 1. PRZYGOTOWANIE DANYCH ---
@@ -570,9 +574,9 @@ if data_sheets:
             
             st.divider()
 
-            # --- 3. TABELA HTML (STYLISTYKA) ---
+            # --- 3. TABELA HTML (BUDOWANIE STRINGA) ---
             
-            # Styl CSS
+            # Styl CSS - to sprawia, że tabela wygląda ładnie
             table_html = """
             <style>
                 .scorers-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-family: sans-serif; }
@@ -606,6 +610,7 @@ if data_sheets:
             
             max_goals = df_s['Gole'].max() if not df_s.empty else 1
             
+            # Pętla generująca wiersze tabeli
             for rank, (idx, row) in enumerate(df_s.iterrows(), 1):
                 # Logo klubu
                 if row["Klub_Logo"]:
@@ -642,7 +647,9 @@ if data_sheets:
             
             table_html += "</tbody></table>"
             
-            # --- KLUCZOWA LINIJKA: Wyświetlanie HTML ---
+            # --- TO JEST NAJWAŻNIEJSZA LINIJKA ---
+            # To ona zamienia tekst HTML na prawdziwą tabelę.
+            # Upewnij się, że nie masz nigdzie 'st.write(table_html)' ani 'st.code'
             st.markdown(table_html, unsafe_allow_html=True)
             
         else:
@@ -788,4 +795,5 @@ if data_sheets:
                                 if lg_g: st.image(lg_g, width=50)
                             st.divider()
                 else: st.info("Brak meczów.")
+
 
