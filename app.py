@@ -2,14 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
-from datetime import datetime
+import re
 
 st.set_page_config(page_title="Liga Mistrzów 25/26", layout="wide", page_icon="⚽")
 
 EXCEL_FILE = "Liga Mistrzów 25_26.xlsx"
 
-# --- 1. ROZSZERZONA BAZA HERBÓW (WIKIMEDIA) ---
-# Obsługuje różne warianty nazw wpisywanych w Excelu
+# --- 1. HERBY KLUBÓW (WIKIMEDIA - KOMPLET) ---
 CLUB_LOGOS = {
     # Anglia
     "Arsenal": "https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg",
@@ -30,6 +29,7 @@ CLUB_LOGOS = {
     "Barca": "https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg",
     "Atlético Madryt": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
     "Atletico Madryt": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
+    "Atlético": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
     "Atletico": "https://upload.wikimedia.org/wikipedia/en/f/f4/Atletico_Madrid_2017_logo.svg",
     "Girona": "https://upload.wikimedia.org/wikipedia/en/9/90/Girona_FC_Crest.svg",
     "Athletic Bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
@@ -71,6 +71,7 @@ CLUB_LOGOS = {
     "Sporting CP": "https://upload.wikimedia.org/wikipedia/en/e/e1/Sporting_Clube_de_Portugal_%28Complex%29.svg",
     "Sporting": "https://upload.wikimedia.org/wikipedia/en/e/e1/Sporting_Clube_de_Portugal_%28Complex%29.svg",
     "Benfica": "https://upload.wikimedia.org/wikipedia/en/a/a2/SL_Benfica_logo.svg",
+    "FC Porto": "https://upload.wikimedia.org/wikipedia/en/f/f1/FC_Porto.svg",
     
     # Holandia
     "PSV Eindhoven": "https://upload.wikimedia.org/wikipedia/en/0/05/PSV_Eindhoven.svg",
@@ -137,39 +138,22 @@ def get_flag_url(nationality_str):
 
 def get_club_logo_url(club_name):
     if not isinstance(club_name, str): return None
-    # Próba dopasowania dokładnego lub częściowego (dla wariantów z spacjami)
+    # Normalizacja nazwy do klucza słownika
     clean_name = club_name.strip()
     return CLUB_LOGOS.get(clean_name, None)
 
 def repair_excel_date_score(value):
-    """
-    Naprawia wynik, jeśli Excel zamienił go na datę.
-    Np. '2025-02-01 00:00:00' -> '1-2' (1 luty) lub '2-1' zależnie od interpretacji.
-    Przyjmujemy Dzień-Miesiąc jako Gospodarz-Gość.
-    """
+    """Naprawia wynik jeśli Excel zamienił go na datę."""
     if pd.isna(value): return None
-    
     val_str = str(value).strip()
-    
-    # Jeśli wygląda jak normalny wynik "2-1", zwracamy go
-    if "-" in val_str and len(val_str) < 6:
-        return val_str
-    
-    # Jeśli wygląda jak data (np. zawiera rok 2025/2026)
+    if "-" in val_str and len(val_str) < 6: return val_str
     try:
-        # Sprawdzamy czy to timestamp
         dt = pd.to_datetime(value, errors='coerce')
         if not pd.isna(dt):
-            # Odzyskujemy wynik: Dzień-Miesiąc
-            # Uwaga: Excel może interpretować 1-2 jako 2 stycznia lub 1 lutego zależnie od ustawień.
-            # Zazwyczaj wpisanie 1-2 daje 2 stycznia (2025-01-02).
-            # Wtedy wynik to: Day(2)-Month(1). Ale to zależy czy wpisano "1-2" czy "2-1".
-            # Przyjmijmy konwencję: Dzień = Gospodarz, Miesiąc = Gość (jeśli data to 2025-01-02 -> wynik 2-1)
-            # Lub odwrotnie. Tutaj zwracamy Dzień-Miesiąc.
+            # Zakładamy format Dzień-Miesiąc
             return f"{dt.day}-{dt.month}"
     except:
         pass
-    
     return val_str
 
 @st.cache_data
@@ -182,7 +166,6 @@ def clean_matches_table(df, start_row_idx):
     header_row = df.iloc[start_row_idx]
     new_columns, indices = [], []
     seen = {}
-    
     for i, c in enumerate(header_row):
         if pd.isna(c) or str(c).strip() == "" or str(c).lower() == "nan": continue
         col_str = str(c).strip()
@@ -192,10 +175,8 @@ def clean_matches_table(df, start_row_idx):
     
     matches = df.iloc[start_row_idx+1:, indices].copy()
     matches.columns = new_columns
-    if 'kolejka' in matches.columns:
-        matches = matches.dropna(subset=['kolejka'])
     
-    # NAPRAWA WYNIKÓW (Daty na tekst)
+    # NAPRAWA WYNIKÓW
     if 'wynik' in matches.columns:
         matches['wynik'] = matches['wynik'].apply(repair_excel_date_score)
         
@@ -217,8 +198,6 @@ def process_team_sheet(df, team_name):
         
         if staff_idx != -1:
             df_players = df_top.loc[:staff_idx-1].copy()
-            
-            # --- SZTAB (TRENERZY) ---
             df_staff_raw = df_top.loc[staff_idx:]
             new_header = df_staff_raw.iloc[0]
             df_staff = df_staff_raw[1:].copy()
@@ -227,22 +206,17 @@ def process_team_sheet(df, team_name):
             # Normalizacja kolumny funkcji
             if 'rola' in df_staff.columns: df_staff.rename(columns={'rola': 'funkcja'}, inplace=True)
             
-            # CZYSZCZENIE SZTABU (Usuwamy wiersze bez nazwiska)
-            if 'imię i nazwisko' in df_staff.columns:
-                df_staff = df_staff.dropna(subset=['imię i nazwisko'])
-            if 'funkcja' in df_staff.columns:
-                df_staff = df_staff.dropna(subset=['funkcja'])
+            # Czyszczenie sztabu
+            if 'funkcja' in df_staff.columns: df_staff = df_staff.dropna(subset=['funkcja'])
+            if 'imię i nazwisko' in df_staff.columns: df_staff = df_staff.dropna(subset=['imię i nazwisko'])
                 
         else:
             df_players = df_top.copy()
             df_staff = pd.DataFrame()
 
-        # --- PIŁKARZE ---
-        # Usuwamy puste wiersze (podsumowania)
-        if 'imię i nazwisko' in df_players.columns:
-            df_players = df_players.dropna(subset=['imię i nazwisko'])
-        else:
-            df_players = df_players.dropna(how='all')
+        # Czyszczenie piłkarzy
+        if 'imię i nazwisko' in df_players.columns: df_players = df_players.dropna(subset=['imię i nazwisko'])
+        else: df_players = df_players.dropna(how='all')
 
         if not df_players.empty:
             df_players.columns = [str(c).lower().strip() for c in df_players.columns]
@@ -256,65 +230,96 @@ def process_team_sheet(df, team_name):
             if 'narodowość' in df_players.columns:
                 df_players['flaga_url'] = df_players['narodowość'].apply(get_flag_url)
 
-        # Flagi w sztabie
         if not df_staff.empty:
             if 'narodowość' in df_staff.columns:
                 df_staff['flaga_url'] = df_staff['narodowość'].apply(get_flag_url)
 
         df_matches = clean_matches_table(df, match_idx)
-        
         return df_players, df_staff, df_matches
 
     except Exception as e:
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-# --- FUNKCJA DO TWORZENIA TERMINARZA ZBIORCZEGO ---
-def get_all_matches(data_sheets):
-    all_matches = []
+# --- FUNKCJA OBLICZANIA TABELI NA ŻYWO ---
+def calculate_live_table(data_sheets):
+    """Przelicza tabelę ligową na podstawie wyników w arkuszach."""
+    stats = {} # {TeamName: {M, Pkt, G+, G-, W, R, P}}
     
-    # Ignorujemy arkusze systemowe
     ignore = ['Tabela', 'Strzelcy', 'Legenda', 'Info']
+    processed_matches = set() # Żeby nie liczyć podwójnie
     
     for sheet_name, df in data_sheets.items():
         if sheet_name in ignore: continue
         
-        # Pobieramy mecze dla danej drużyny
         _, _, df_m = process_team_sheet(df, sheet_name)
         
-        if not df_m.empty and {'kolejka', 'gospodarze', 'goście'}.issubset(df_m.columns):
+        if not df_m.empty and 'wynik' in df_m.columns and 'gospodarze' in df_m.columns:
             for _, row in df_m.iterrows():
-                # Tworzymy unikalny ID meczu żeby usunąć duplikaty (mecz jest u Gospodarza i Gościa)
                 host = str(row['gospodarze']).strip()
                 guest = str(row['goście']).strip()
-                match_id = "-".join(sorted([host, guest])) + f"-k{row['kolejka']}"
+                wynik = str(row['wynik']).strip()
+                kolejka = str(row['kolejka']).strip()
                 
-                score = row['wynik'] if 'wynik' in row else None
-                # Jeśli wynik jest pusty/None -> None
-                if pd.isna(score) or str(score).strip() == "":
-                    display_score = None
-                else:
-                    display_score = str(score)
+                # Unikalne ID meczu
+                match_id = "-".join(sorted([host, guest])) + f"-k{kolejka}"
+                if match_id in processed_matches: continue
+                
+                # Inicjalizacja drużyn w stats
+                if host not in stats: stats[host] = {'M':0, 'Pkt':0, 'BZ':0, 'BS':0, 'W':0, 'R':0, 'P':0}
+                if guest not in stats: stats[guest] = {'M':0, 'Pkt':0, 'BZ':0, 'BS':0, 'W':0, 'R':0, 'P':0}
+                
+                # Parsowanie wyniku
+                if '-' in wynik and wynik.replace('-','').isdigit():
+                    processed_matches.add(match_id)
+                    h_goals, a_goals = map(int, wynik.split('-'))
+                    
+                    # Gospodarz
+                    stats[host]['M'] += 1
+                    stats[host]['BZ'] += h_goals
+                    stats[host]['BS'] += a_goals
+                    
+                    # Gość
+                    stats[guest]['M'] += 1
+                    stats[guest]['BZ'] += a_goals
+                    stats[guest]['BS'] += h_goals
+                    
+                    if h_goals > a_goals:
+                        stats[host]['Pkt'] += 3
+                        stats[host]['W'] += 1
+                        stats[guest]['P'] += 1
+                    elif a_goals > h_goals:
+                        stats[guest]['Pkt'] += 3
+                        stats[guest]['W'] += 1
+                        stats[host]['P'] += 1
+                    else:
+                        stats[host]['Pkt'] += 1
+                        stats[host]['R'] += 1
+                        stats[guest]['Pkt'] += 1
+                        stats[guest]['R'] += 1
 
-                all_matches.append({
-                    "id": match_id,
-                    "Kolejka": row['kolejka'],
-                    "Gospodarze": host,
-                    "Goście": guest,
-                    "Wynik": display_score,
-                    "Logo_Gosp": get_club_logo_url(host),
-                    "Logo_Gosc": get_club_logo_url(guest)
-                })
-    
-    # Usuwanie duplikatów (bo każdy mecz jest w 2 arkuszach)
-    unique_matches = {m['id']: m for m in all_matches}.values()
-    df_all = pd.DataFrame(unique_matches)
-    
-    if not df_all.empty:
-        # Sortowanie
-        df_all['Kolejka'] = pd.to_numeric(df_all['Kolejka'], errors='coerce')
-        df_all = df_all.sort_values(by=['Kolejka', 'Gospodarze'])
+    # Konwersja do DataFrame
+    table_data = []
+    for team, s in stats.items():
+        table_data.append({
+            'klub': team,
+            'mecze': s['M'],
+            'punkty': s['Pkt'],
+            'strzelone': s['BZ'],
+            'stracone': s['BS'],
+            'bilans': s['BZ'] - s['BS'],
+            'wygrane': s['W'],
+            'remisy': s['R'],
+            'porażki': s['P']
+        })
         
-    return df_all
+    df_live = pd.DataFrame(table_data)
+    if not df_live.empty:
+        df_live = df_live.sort_values(by=['punkty', 'bilans', 'strzelone'], ascending=[False, False, False])
+        df_live.reset_index(drop=True, inplace=True)
+        df_live.index += 1
+        df_live['Miejsce'] = df_live.index
+        
+    return df_live
 
 # --- APP START ---
 
@@ -328,82 +333,106 @@ if data_sheets:
     
     page = st.sidebar.radio("Wybierz widok", ["🏆 Tabela Ligowa", "📅 Terminarz", "🎯 Strzelcy", "⚽ Drużyny"])
     
-    # --- 1. TABELA ---
+    # --- 1. TABELA LIGOWA (DYNAMICZNA) ---
     if page == "🏆 Tabela Ligowa":
-        st.title("Tabela Ligi Mistrzów 25/26")
-        if 'Tabela' in data_sheets:
-            df_tabela = data_sheets['Tabela']
-            df_tabela = df_tabela.loc[:, ~df_tabela.columns.str.contains('^Unnamed')]
-            
-            if 'klub' in df_tabela.columns:
-                df_tabela['logo_url'] = df_tabela['klub'].apply(get_club_logo_url)
-            
-            cols = ['Miejsce', 'logo_url', 'klub', 'mecze', 'punkty', 'strzelone', 'stracone', 'bilans', 'wygrane', 'remisy', 'porażki']
-            final_cols = [c for c in cols if c in df_tabela.columns]
+        st.title("Tabela Ligi Mistrzów 25/26 (Live)")
+        
+        # Obliczamy tabelę na podstawie meczów
+        df_live_table = calculate_live_table(data_sheets)
+        
+        if not df_live_table.empty:
+            df_live_table['logo_url'] = df_live_table['klub'].apply(get_club_logo_url)
             
             st.dataframe(
-                df_tabela[final_cols],
+                df_live_table,
                 use_container_width=True, hide_index=True,
                 column_config={
                     "logo_url": st.column_config.ImageColumn("Herb", width="small"),
                     "bilans": st.column_config.ProgressColumn("Bilans", min_value=-20, max_value=50, format="%d"),
                     "Miejsce": st.column_config.NumberColumn("#", format="%d")
-                }
+                },
+                column_order=['Miejsce', 'logo_url', 'klub', 'mecze', 'punkty', 'strzelone', 'stracone', 'bilans', 'wygrane', 'remisy', 'porażki']
             )
         else:
-            st.info("Brak arkusza Tabela.")
+            st.info("Brak rozegranych meczów do wyświetlenia tabeli.")
 
-    # --- 2. TERMINARZ (NOWY MODUŁ) ---
+    # --- 2. TERMINARZ Z STRZELCAMI ---
     elif page == "📅 Terminarz":
-        st.title("Terminarz Rozgrywek")
-        df_schedule = get_all_matches(data_sheets)
+        st.title("Terminarz i Wyniki")
         
-        if not df_schedule.empty:
-            rounds = sorted(df_schedule['Kolejka'].dropna().unique())
-            selected_round = st.selectbox("Wybierz kolejkę", rounds)
+        # Zbieramy wszystkie mecze
+        all_matches = []
+        processed_ids = set()
+        
+        for name in team_names:
+            _, _, df_m = process_team_sheet(data_sheets[name], name)
+            if not df_m.empty and 'wynik' in df_m.columns:
+                # Szukamy kolumn ze strzelcami (zawierają 'gole dla' lub 'strzelcy')
+                scorer_cols = [c for c in df_m.columns if 'gole dla' in str(c).lower() or 'strzelcy' in str(c).lower()]
+                
+                for _, row in df_m.iterrows():
+                    h, g = str(row['gospodarze']).strip(), str(row['goście']).strip()
+                    k = row['kolejka']
+                    mid = "-".join(sorted([h, g])) + f"-k{k}"
+                    
+                    if mid in processed_ids: continue
+                    processed_ids.add(mid)
+                    
+                    # Pobieranie strzelców (tekst)
+                    scorers_txt = ""
+                    for sc in scorer_cols:
+                        if pd.notna(row[sc]):
+                            scorers_txt += str(row[sc]) + " "
+                    
+                    res = row['wynik']
+                    if pd.isna(res) or str(res).strip() == "" or str(res).lower() == "nan":
+                        res_display = "Mecz nieuzupełniony"
+                    else:
+                        res_display = str(res)
+
+                    all_matches.append({
+                        "Kolejka": int(k) if str(k).isdigit() else 0,
+                        "Gospodarze": h, "Goście": g, "Wynik": res_display,
+                        "Strzelcy": scorers_txt.strip(),
+                        "Logo_H": get_club_logo_url(h), "Logo_A": get_club_logo_url(g)
+                    })
+        
+        df_sched = pd.DataFrame(all_matches).sort_values('Kolejka')
+        
+        if not df_sched.empty:
+            rounds = sorted(df_sched['Kolejka'].unique())
+            sel_round = st.selectbox("Wybierz kolejkę", rounds)
             
-            df_round = df_schedule[df_schedule['Kolejka'] == selected_round]
-            
-            st.write(f"### Kolejka {int(selected_round)}")
-            
-            for _, row in df_round.iterrows():
-                # Kontener dla meczu
+            for _, row in df_sched[df_sched['Kolejka'] == sel_round].iterrows():
                 with st.container():
                     c1, c2, c3, c4, c5 = st.columns([1, 3, 2, 3, 1])
-                    with c1:
-                        if row['Logo_Gosp']: st.image(row['Logo_Gosp'], width=40)
-                    with c2:
-                        st.markdown(f"**{row['Gospodarze']}**")
-                    with c3:
-                        # Wynik lub status
-                        if row['Wynik']:
-                            st.markdown(f"<h4 style='text-align: center; color: #333;'>{row['Wynik']}</h4>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div style='text-align: center; color: gray; font-size: 0.8em;'>Mecz nieuzupełniony<br>lub się nie odbył</div>", unsafe_allow_html=True)
-                    with c4:
-                        st.markdown(f"**{row['Goście']}**")
-                    with c5:
-                        if row['Logo_Gosc']: st.image(row['Logo_Gosc'], width=40)
+                    with c1: 
+                        if row['Logo_H']: st.image(row['Logo_H'], width=40)
+                    with c2: st.markdown(f"**{row['Gospodarze']}**")
+                    with c3: 
+                        st.markdown(f"<h4 style='text-align:center'>{row['Wynik']}</h4>", unsafe_allow_html=True)
+                    with c4: st.markdown(f"**{row['Goście']}**")
+                    with c5: 
+                        if row['Logo_A']: st.image(row['Logo_A'], width=40)
+                    
+                    if row['Strzelcy']:
+                        st.caption(f"⚽ {row['Strzelcy']}")
                     st.divider()
-        else:
-            st.info("Nie znaleziono żadnych meczów w plikach drużyn.")
 
     # --- 3. STRZELCY ---
     elif page == "🎯 Strzelcy":
         st.title("Najlepsi Strzelcy")
         if 'Strzelcy' in data_sheets:
-            df_strzelcy = data_sheets['Strzelcy']
-            if 'kraj' in df_strzelcy.columns:
-                df_strzelcy['flaga_url'] = df_strzelcy['kraj'].apply(get_flag_url)
-            if 'data urodzenia' in df_strzelcy.columns:
-                df_strzelcy['data urodzenia'] = pd.to_datetime(df_strzelcy['data urodzenia'], errors='coerce').dt.date
-
+            df_s = data_sheets['Strzelcy']
+            if 'kraj' in df_s.columns: df_s['flaga_url'] = df_s['kraj'].apply(get_flag_url)
+            if 'data urodzenia' in df_s.columns:
+                df_s['data urodzenia'] = pd.to_datetime(df_s['data urodzenia'], errors='coerce').dt.date
+            
             st.dataframe(
-                df_strzelcy,
-                use_container_width=True, hide_index=True,
+                df_s, use_container_width=True, hide_index=True,
                 column_config={
-                    "data urodzenia": st.column_config.DateColumn("Data urodzenia", format="DD.MM.YYYY"),
-                    "flaga_url": st.column_config.ImageColumn("Kraj", width="small")
+                    "flaga_url": st.column_config.ImageColumn("Kraj", width="small"),
+                    "data urodzenia": st.column_config.DateColumn("Data ur.", format="DD.MM.YYYY")
                 }
             )
 
@@ -415,101 +444,94 @@ if data_sheets:
         if selected_team:
             df_p, df_s, df_m = process_team_sheet(data_sheets[selected_team], selected_team)
             
-            st.header(f"Raport: {selected_team}")
+            # HEADER Z LOGO
+            ch1, ch2 = st.columns([1, 6])
+            with ch1:
+                logo = get_club_logo_url(selected_team)
+                if logo: st.image(logo, width=80)
+            with ch2:
+                st.header(f"Raport: {selected_team}")
             
-            if not df_p.empty:
-                goals = df_p['gole'].sum() if 'gole' in df_p.columns else 0
-                matches = len(df_m)
-                st.columns(2)[0].metric("Gole Zespołu", goals)
-                st.columns(2)[1].metric("Rozegrane Mecze", matches)
+            # KPI (Licznik meczów tylko rozegranych)
+            matches_played = 0
+            if not df_m.empty and 'wynik' in df_m.columns:
+                matches_played = df_m['wynik'].apply(lambda x: 1 if pd.notna(x) and str(x).strip() != '' else 0).sum()
+                
+            goals = df_p['gole'].sum() if not df_p.empty and 'gole' in df_p.columns else 0
             
-            tab1, tab2, tab3 = st.tabs(["Kadra i Sztab", "Terminarz", "Statystyki"])
+            k1, k2 = st.columns(2)
+            k1.metric("Gole Zespołu", goals)
+            k2.metric("Rozegrane Mecze", matches_played)
+            
+            tab1, tab2, tab3 = st.tabs(["Kadra", "Terminarz", "Statystyki"])
             
             with tab1:
                 st.subheader("Zawodnicy")
                 if not df_p.empty:
                     cols_p = ['numer', 'flaga_url', 'imię i nazwisko', 'pozycja', 'narodowość', 'wiek', 'mecze', 'gole', 'asysty', 'kanadyjka']
                     final_p = [c for c in cols_p if c in df_p.columns]
-                    
-                    # Lokalne skalowanie paska goli
-                    max_g = df_p['gole'].max() if 'gole' in df_p.columns and not df_p['gole'].empty else 10
-                    if max_g == 0: max_g = 1
+                    max_g = df_p['gole'].max() if 'gole' in df_p.columns else 10
                     
                     st.dataframe(
-                        df_p[final_p],
-                        use_container_width=True, hide_index=True,
+                        df_p[final_p], use_container_width=True, hide_index=True,
                         column_config={
-                            "gole": st.column_config.ProgressColumn("Gole", format="%d", min_value=0, max_value=int(max_g)),
                             "flaga_url": st.column_config.ImageColumn("Kraj", width="small"),
+                            "gole": st.column_config.ProgressColumn("Gole", format="%d", min_value=0, max_value=int(max_g) if max_g > 0 else 1),
                             "numer": st.column_config.NumberColumn("#", format="%d")
                         }
                     )
-                else:
-                    st.warning("Brak danych zawodników.")
                 
                 if not df_s.empty:
                     st.markdown("---")
-                    st.subheader("Sztab szkoleniowy")
-                    cols_s = ['flaga_url', 'imię i nazwisko', 'funkcja', 'narodowość', 'wiek', 'mecze', 'punkty']
+                    st.subheader("Sztab")
+                    cols_s = ['flaga_url', 'imię i nazwisko', 'funkcja', 'narodowość', 'wiek']
                     final_s = [c for c in cols_s if c in df_s.columns]
-                    
                     st.dataframe(
-                        df_s[final_s],
-                        use_container_width=True, hide_index=True,
-                        column_config={
-                            "flaga_url": st.column_config.ImageColumn("Kraj", width="small")
-                        }
+                        df_s[final_s], use_container_width=True, hide_index=True,
+                        column_config={"flaga_url": st.column_config.ImageColumn("Kraj", width="small")}
                     )
 
             with tab2:
                 if not df_m.empty and 'wynik' in df_m.columns:
-                    # Kolorowanie wyników
-                    def color_result(row):
+                    # Kolorowanie
+                    def style_res(row):
                         res = str(row['wynik'])
-                        if not res or res == 'None' or res == 'nan': return "" # Brak koloru dla pustych
-                        
+                        if not res or res == 'nan' or res == 'None': return ""
                         try:
                             if '-' in res:
                                 h, a = map(int, res.split('-'))
-                                # Prosta heurystyka: czy nazwa zespołu jest w gospodarzu/gościu
+                                # Prosta detekcja po nazwie
                                 if selected_team in str(row['gospodarze']):
-                                    if h > a: return "background-color: #d4edda; color: green" # Win
-                                    if h < a: return "background-color: #f8d7da; color: red"   # Loss
-                                    return "background-color: #fff3cd; color: #856404"         # Draw
+                                    if h > a: return "color: green"
+                                    if h < a: return "color: red"
+                                    return "color: #b58900"
                                 elif selected_team in str(row['goście']):
-                                    if a > h: return "background-color: #d4edda; color: green"
-                                    if a < h: return "background-color: #f8d7da; color: red"
-                                    return "background-color: #fff3cd; color: #856404"
+                                    if a > h: return "color: green"
+                                    if a < h: return "color: red"
+                                    return "color: #b58900"
                         except: pass
                         return ""
-
-                    # Zastępujemy puste wyniki tekstem
-                    df_display = df_m.copy()
-                    df_display['wynik'] = df_display['wynik'].apply(lambda x: x if x and str(x) != 'nan' else "Mecz się jeszcze nie odbył")
+                        
+                    # Wyświetlanie "Mecz nieuzupełniony"
+                    df_show = df_m.copy()
+                    df_show['wynik'] = df_show['wynik'].apply(lambda x: x if pd.notna(x) and str(x).strip() != "" else "Mecz nieuzupełniony")
                     
                     st.dataframe(
-                        df_display.style.apply(lambda x: [color_result(x) if col == 'wynik' else '' for col in x.index], axis=1),
+                        df_show.style.apply(lambda x: [style_res(x) if col == 'wynik' else '' for col in x.index], axis=1),
                         use_container_width=True, hide_index=True
                     )
                 else:
-                    st.info("Brak terminarza.")
-            
+                    st.info("Brak meczów.")
+
             with tab3:
                 if not df_p.empty:
-                    st.markdown("### Szczegółowe statystyki")
                     c1, c2 = st.columns(2)
-                    
                     with c1:
                         if 'minuty' in df_p.columns:
-                            top_min = df_p.nlargest(15, 'minuty').sort_values('minuty', ascending=True)
-                            fig = px.bar(top_min, x='minuty', y='imię i nazwisko', orientation='h', title="Minuty", text='minuty')
-                            st.plotly_chart(fig, use_container_width=True)
-                        
+                            top = df_p.nlargest(15, 'minuty').sort_values('minuty')
+                            st.plotly_chart(px.bar(top, x='minuty', y='imię i nazwisko', orientation='h', title="Minuty", text='minuty'), use_container_width=True)
                     with c2:
                         if 'gole' in df_p.columns:
-                            scorers = df_p[df_p['gole'] > 0].sort_values('gole', ascending=True)
-                            if not scorers.empty:
-                                fig = px.bar(scorers, x='gole', y='imię i nazwisko', orientation='h', title="Gole", text='gole')
-                                fig.update_traces(marker_color='#d62728')
-                                st.plotly_chart(fig, use_container_width=True)
-                            else: st.caption("Brak goli.")
+                            sc = df_p[df_p['gole']>0].sort_values('gole')
+                            if not sc.empty:
+                                st.plotly_chart(px.bar(sc, x='gole', y='imię i nazwisko', orientation='h', title="Gole", text='gole', color_discrete_sequence=['red']), use_container_width=True)
