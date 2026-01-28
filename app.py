@@ -3,19 +3,20 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# Konfiguracja strony
 st.set_page_config(page_title="Liga Mistrzów 25/26", layout="wide", page_icon="⚽")
 
-# Stała nazwa pliku Excel
 EXCEL_FILE = "Liga Mistrzów 25_26.xlsx"
 
-# --- BAZA FLAG ---
 FLAG_MAP = {
-    "Polska": "🇵🇱", "Hiszpania": "🇪🇸", "Niemcy": "🇩🇪", "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "Anglia": "gb-eng", 
+    "Szkocja": "gb-sct", 
+    "Walia": "gb-wls", 
+    "Irlandia Północna": "gb-nir",
+    "Polska": "🇵🇱", "Hiszpania": "🇪🇸", "Niemcy": "🇩🇪", 
     "Włochy": "🇮🇹", "Francja": "🇫🇷", "Portugalia": "🇵🇹", "Holandia": "🇳🇱",
     "Brazylia": "🇧🇷", "Argentyna": "🇦🇷", "Urugwaj": "🇺🇾", "Belgia": "🇧🇪",
     "Chorwacja": "🇭🇷", "Dania": "🇩🇰", "Szwecja": "🇸🇪", "Norwegia": "🇳🇴",
-    "Szkocja": "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "Walia": "🏴󠁧󠁢󠁷󠁬󠁳󠁿", "Irlandia": "🇮🇪", "Czechy": "🇨🇿",
+    "Irlandia": "🇮🇪", "Czechy": "🇨🇿",
     "Słowacja": "🇸🇰", "Ukraina": "🇺🇦", "Turcja": "🇹🇷", "Grecja": "🇬🇷",
     "USA": "🇺🇸", "Kanada": "🇨🇦", "Meksyk": "🇲🇽", "Kolumbia": "🇨🇴",
     "Chile": "🇨🇱", "Japonia": "🇯🇵", "Korea Południowa": "🇰🇷", "Chiny": "🇨🇳",
@@ -43,8 +44,6 @@ def get_flag_fallback(nationality_str):
         if flag:
             flags.append(flag)
     return " ".join(flags) if flags else ""
-
-# --- FUNKCJE ŁADOWANIA DANYCH ---
 
 @st.cache_data
 def load_all_data(file_path):
@@ -127,12 +126,88 @@ def process_team_sheet(df, team_name):
         st.warning(f"⚠️ Problem z zakładką '{team_name}': {e}")
         return pd.DataFrame(), pd.DataFrame()
 
-# --- START APLIKACJI ---
-
 data_sheets = load_all_data(EXCEL_FILE)
 
 if data_sheets:
     st.sidebar.title("Menu")
     sheet_names = list(data_sheets.keys())
     special_sheets = ['Tabela', 'Strzelcy', 'Legenda', 'Info']
-    team_names = sorted([n for n in sheet_names if n not
+    team_names = sorted([n for n in sheet_names if n not in special_sheets])
+    
+    page = st.sidebar.radio("Wybierz widok", ["🏆 Tabela Ligowa", "🎯 Strzelcy", "⚽ Drużyny"])
+    
+    if page == "🏆 Tabela Ligowa":
+        st.title("Tabela Ligi Mistrzów 25/26")
+        if 'Tabela' in data_sheets:
+            df_tabela = data_sheets['Tabela']
+            df_tabela = df_tabela.loc[:, ~df_tabela.columns.str.contains('^Unnamed')]
+            st.dataframe(df_tabela, use_container_width=True, hide_index=True)
+
+    elif page == "🎯 Strzelcy":
+        st.title("Najlepsi Strzelcy")
+        if 'Strzelcy' in data_sheets:
+            df_strzelcy = data_sheets['Strzelcy']
+            
+            if 'data urodzenia' in df_strzelcy.columns:
+                df_strzelcy['data urodzenia'] = pd.to_datetime(df_strzelcy['data urodzenia'], errors='coerce')
+                df_strzelcy['data urodzenia'] = df_strzelcy['data urodzenia'].dt.date
+
+            st.dataframe(
+                df_strzelcy, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "data urodzenia": st.column_config.DateColumn(
+                        "Data urodzenia",
+                        format="DD.MM.YYYY"
+                    )
+                }
+            )
+        else:
+            st.info("Brak arkusza 'Strzelcy'.")
+
+    elif page == "⚽ Drużyny":
+        st.title("Statystyki Drużyn")
+        selected_team = st.sidebar.selectbox("Wybierz drużynę", team_names)
+        
+        if selected_team:
+            df_p, df_m = process_team_sheet(data_sheets[selected_team], selected_team)
+            
+            st.header(f"Raport: {selected_team}")
+            
+            if not df_p.empty:
+                goals = df_p['gole'].sum() if 'gole' in df_p.columns else 0
+                matches = len(df_m)
+                
+                c1, c2 = st.columns(2)
+                c1.metric("Gole", goals)
+                c2.metric("Mecze", matches)
+            
+            tab1, tab2, tab3 = st.tabs(["Kadra", "Terminarz", "Wykresy"])
+            
+            with tab1:
+                if not df_p.empty:
+                    order = ['numer', 'imię i nazwisko', 'pozycja', 'kraj', 'wiek', 'mecze', 'gole', 'asysty', 'kanadyjka']
+                    cols = [c for c in order if c in df_p.columns]
+                    
+                    st.dataframe(
+                        df_p[cols],
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "gole": st.column_config.ProgressColumn("Gole", format="%d", min_value=0, max_value=20),
+                            "kraj": st.column_config.Column("Narodowość", width="medium"),
+                            "numer": st.column_config.NumberColumn("#", format="%d")
+                        }
+                    )
+            
+            with tab2:
+                if not df_m.empty:
+                    st.table(df_m)
+                else:
+                    st.info("Brak terminarza.")
+                    
+            with tab3:
+                if not df_p.empty and 'pozycja' in df_p.columns:
+                    fig = px.pie(df_p, names='pozycja', title='Pozycje', hole=0.4)
+                    st.plotly_chart(fig)
