@@ -11,7 +11,6 @@ EXCEL_FILE = "Liga Mistrzów 25_26.xlsx"
 # --- 1. SŁOWNIKI I KONFIGURACJA ---
 
 def normalize_key(name):
-    """Czyści nazwę do formatu klucza (małe litery, bez spacji)."""
     if not isinstance(name, str): return ""
     return name.strip().lower()
 
@@ -35,39 +34,32 @@ TEAM_ALIASES = {
     "shakhtar donetsk": ["szachtar", "szachtar donieck"],
     "szachtar": ["shakhtar", "shakhtar donetsk"],
     "red star belgrade": ["crvena zvezda", "crvena"],
-    "crvena zvezda": ["red star", "red star belgrade"]
+    "crvena zvezda": ["red star", "red star belgrade"],
+    "athletic club": ["athletic", "bilbao", "athletic bilbao"],
+    "athletic": ["athletic club", "bilbao", "athletic bilbao"]
 }
 
 def is_same_team(name1, name2):
-    """Sprawdza czy dwie nazwy to ta sama drużyna (uwzględniając aliasy)."""
     n1 = normalize_key(name1)
     n2 = normalize_key(name2)
-    
     if n1 == n2: return True
     if n1 in n2 or n2 in n1: return True
-    
-    # Sprawdzenie aliasów
     if n1 in TEAM_ALIASES:
         for alias in TEAM_ALIASES[n1]:
             if normalize_key(alias) == n2 or normalize_key(alias) in n2: return True
-    
     if n2 in TEAM_ALIASES:
         for alias in TEAM_ALIASES[n2]:
             if normalize_key(alias) == n1 or normalize_key(alias) in n1: return True
-            
     return False
 
-# BAZA HERBÓW (ZAKTUALIZOWANA)
+# BAZA HERBÓW
 CLUB_LOGOS_RAW = {
-    # NOWE LINKI Z PROŚBY
     "union saint-gilloise": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
     "union sg": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
     "usg": "https://upload.wikimedia.org/wikipedia/en/0/02/Royale_Union_Saint-Gilloise_logo.png",
     "atlético madryt": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
     "atletico": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
     "atlético madyt": "https://upload.wikimedia.org/wikinews/en/c/c1/Atletico_Madrid_logo.svg",
-    
-    # POZOSTAŁE (BEZ ZMIAN)
     "paris saint-germain": "https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg",
     "psg": "https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg",
     "bodø/glimt": "https://upload.wikimedia.org/wikipedia/en/8/8d/FK_Bodo_Glimt_logo.svg",
@@ -106,6 +98,8 @@ CLUB_LOGOS_RAW = {
     "barca": "https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg",
     "girona": "https://upload.wikimedia.org/wikipedia/en/9/90/Girona_FC_Crest.svg",
     "bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
+    "athletic": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
+    "athletic club": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
     "bayern": "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_München_logo_%282017%29.svg",
     "borussia": "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg",
     "leverkusen": "https://upload.wikimedia.org/wikipedia/en/5/59/Bayer_04_Leverkusen_logo.svg",
@@ -181,6 +175,26 @@ def get_flag_html(nationality_str):
             html_out += f'<img src="https://flagcdn.com/w40/{code}.png" width="22" style="margin-right:4px; vertical-align:middle; border:1px solid #ddd; border-radius:2px;">'
     return html_out
 
+# --- PRZYWRÓCONA FUNKCJA DO OBSŁUGI ZWYKŁEJ TABELI ---
+def get_flag_url(nationality_str):
+    if not isinstance(nationality_str, str) or not nationality_str.strip(): return None
+    clean_nat = re.split(r'[,/]', nationality_str)[0].strip()
+    clean_key = normalize_key(clean_nat)
+    
+    if "konaga" in clean_key or "konga" in clean_key: 
+        code = "cd"
+    else:
+        code = COUNTRY_CODES.get(clean_key)
+        if not code:
+            for k, v in COUNTRY_CODES.items():
+                if k in clean_key:
+                    code = v
+                    break
+    
+    if code:
+        return f"https://flagcdn.com/w40/{code}.png"
+    return None
+
 def get_club_logo_url(club_name):
     if not isinstance(club_name, str): return None
     key = normalize_key(club_name)
@@ -220,13 +234,9 @@ def build_player_club_map(data_sheets, team_names):
     player_map = {}
     for team in team_names:
         df = data_sheets[team]
-        # Szybkie szukanie początku tabeli piłkarzy
-        start_idx = 0
-        if isinstance(df.columns[0], int): # Jeżeli nagłówek nie wczytał się w 1. linii
+        if isinstance(df.columns[0], int):
              df.columns = df.iloc[0].astype(str).str.lower().str.strip()
              df = df[1:]
-        
-        # Szukamy kolumny z nazwiskiem
         name_col = next((c for c in df.columns if 'imię i nazwisko' in str(c).lower()), None)
         if name_col:
             for _, row in df.iterrows():
@@ -327,11 +337,9 @@ def aggregate_matches(data_sheets, team_names):
             k = raw_k
             
             raw_res = str(row.get('wynik','')).strip()
-            
-            # --- NOWOŚĆ: POBIERANIE STADIONU ---
             stadion = str(row.get('stadion', '')).strip()
             if stadion.lower() == 'nan': stadion = ""
-
+            
             if not h or h.lower()=='nan' or not g: continue
             
             mid = "-".join(sorted([h, g])) + f"-k{k}"
@@ -342,13 +350,12 @@ def aggregate_matches(data_sheets, team_names):
                     "Gospodarze": h, "Goście": g, 
                     "Wynik": "-", "Excel_Res": None, 
                     "Strzelcy_H": [], "Strzelcy_A": [],
-                    "Stadion": "" # Inicjalizacja stadionu
+                    "Stadion": ""
                 }
             
             if raw_res and raw_res.lower() != 'nan' and raw_res != '-' and matches_dict[mid]["Excel_Res"] is None:
                 matches_dict[mid]["Excel_Res"] = raw_res
             
-            # Zapisz stadion, jeśli znaleziono
             if stadion and not matches_dict[mid]["Stadion"]:
                 matches_dict[mid]["Stadion"] = stadion
 
@@ -367,7 +374,7 @@ def aggregate_matches(data_sheets, team_names):
             if target is not None:
                 for s in found: target.append(s)
 
-    # Manualny fix Ajax - Benfica
+    # Manualny wpis
     ajax_benfica_key = None
     for mid in matches_dict.keys():
         if ("ajax" in mid.lower() and "benfica" in mid.lower()):
@@ -435,9 +442,7 @@ if data_sheets:
     sheet_names = list(data_sheets.keys())
     team_names = sorted([n for n in sheet_names if n not in ['Tabela', 'Strzelcy', 'Legenda', 'Info']])
     
-    # Budowa mapy piłkarzy dla Strzelców
     player_club_map = build_player_club_map(data_sheets, team_names)
-    
     matches_dict = aggregate_matches(data_sheets, team_names)
     
     page = st.sidebar.radio("Wybierz widok", ["🏆 Tabela Ligowa", "📅 Terminarz", "🎯 Strzelcy", "⚽ Drużyny"])
@@ -481,26 +486,13 @@ if data_sheets:
             else: st.info("Brak kolejek.")
 
     elif page == "🎯 Strzelcy":
-        # --- FIX: WYMUSZENIE HERBÓW (W TYM BILBAO) ---
-        CLUB_LOGOS_RAW.update({
-            "athletic": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
-            "athletic club": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
-            "bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
-            "bologna": "https://upload.wikimedia.org/wikipedia/en/5/5b/Bologna_F.C._1909_logo.svg",
-            "sturm": "https://upload.wikimedia.org/wikipedia/commons/c/cc/SK_Sturm_Graz_Logo.svg",
-            "brest": "https://upload.wikimedia.org/wikipedia/en/0/05/Stade_Brestois_29_logo.svg",
-            "shakhtar": "https://upload.wikimedia.org/wikipedia/en/a/a1/FC_Shakhtar_Donetsk.svg"
-        })
-
         st.markdown("## 🎯 Najskuteczniejsi Strzelcy")
         
         if 'Strzelcy' in data_sheets:
             df_s = data_sheets['Strzelcy']
             df_s.columns = [str(c).lower().strip() for c in df_s.columns]
             
-            # --- 1. PRZYGOTOWANIE DANYCH ---
-            
-            # Funkcja szukająca klubu
+            # --- PRZYGOTOWANIE DANYCH ---
             def resolve_club(row):
                 if 'klub' in row and pd.notna(row['klub']): return str(row['klub'])
                 name = str(row.get('imię i nazwisko', '')).strip()
@@ -516,18 +508,16 @@ if data_sheets:
                 df_s['Klub_Raw'] = ""
                 df_s['Klub_Logo'] = None
             
-            # Flagi (URL dla Dataframe, HTML dla Kart)
             col_nat = next((c for c in df_s.columns if c in ['kraj', 'narodowość']), None)
             if col_nat:
                 # Dla kart (Top 3)
                 df_s['Flaga_HTML'] = df_s[col_nat].apply(lambda x: get_flag_html(x) if x else "")
-                # Dla tabeli (Reszta) - bierzemy pierwszy URL flagi
+                # Dla tabeli (Reszta) - bierzemy pierwszy URL
                 df_s['Flaga_Url'] = df_s[col_nat].apply(lambda x: get_flag_url(x) if x else None)
             else:
                 df_s['Flaga_HTML'] = ""
                 df_s['Flaga_Url'] = None
 
-            # Gole
             col_gole = next((c for c in df_s.columns if c in ['gole', 'liczba goli', 'bramki']), None)
             if col_gole:
                 df_s['Gole'] = pd.to_numeric(df_s[col_gole], errors='coerce').fillna(0).astype(int)
@@ -535,12 +525,11 @@ if data_sheets:
                 st.error("Brak kolumny z golami.")
                 st.stop()
             
-            # Sortowanie i indeksowanie
             df_s = df_s.sort_values('Gole', ascending=False).reset_index(drop=True)
             df_s.index += 1
             df_s['Miejsce'] = df_s.index
 
-            # --- 2. TOP 3 (KARTY) ---
+            # --- TOP 3 (KARTY) ---
             top3 = df_s.head(3)
             if not top3.empty:
                 cols = st.columns(3)
@@ -566,41 +555,27 @@ if data_sheets:
             
             st.divider()
 
-            # --- 3. RESZTA (STANDARDOWA TABELA DATA FRAME) ---
-            # To jest niezawodne i systemowe
+            # --- RESZTA (STANDARDOWA TABELA) ---
             rest_of_players = df_s.iloc[3:].copy()
-            
             if not rest_of_players.empty:
                 st.subheader("Pozostali strzelcy")
-                
-                # Konfiguracja kolumn do wyświetlenia
                 cols_to_show = ['Miejsce', 'Flaga_Url', 'imię i nazwisko', 'Klub_Logo', 'Klub_Raw', 'Gole']
-                
                 st.dataframe(
                     rest_of_players[cols_to_show],
-                    use_container_width=True,
-                    hide_index=True,
+                    use_container_width=True, hide_index=True,
                     column_config={
                         "Miejsce": st.column_config.NumberColumn("#", format="%d", width="small"),
                         "Flaga_Url": st.column_config.ImageColumn("Kraj", width="small"),
                         "imię i nazwisko": st.column_config.TextColumn("Zawodnik", width="medium"),
                         "Klub_Logo": st.column_config.ImageColumn("Herb", width="small"),
                         "Klub_Raw": st.column_config.TextColumn("Klub", width="medium"),
-                        "Gole": st.column_config.ProgressColumn(
-                            "Gole", 
-                            format="%d", 
-                            min_value=0, 
-                            max_value=int(df_s['Gole'].max()),
-                            width="medium"
-                        )
+                        "Gole": st.column_config.ProgressColumn("Gole", format="%d", min_value=0, max_value=int(df_s['Gole'].max()))
                     }
                 )
-        else:
-            st.warning("Brak zakładki 'Strzelcy'.")
-            
+        else: st.warning("Brak zakładki 'Strzelcy'.")
+
     elif page == "⚽ Drużyny":
         st.title("Profil Drużyny")
-        
         selected_team = st.sidebar.selectbox("Wybierz Klub", team_names)
         
         if selected_team:
@@ -608,7 +583,6 @@ if data_sheets:
             full_table = calculate_table(matches_dict)
             team_stats = full_table[full_table['klub'] == selected_team].iloc[0] if not full_table[full_table['klub'] == selected_team].empty else None
 
-            # --- NAGŁÓWEK KLUBU ---
             with st.container():
                 col_logo, col_info, col_form = st.columns([1, 3, 2])
                 with col_logo:
@@ -633,7 +607,6 @@ if data_sheets:
                         st.markdown(form_html, unsafe_allow_html=True)
             st.divider()
 
-            # --- KPI ---
             if not df_p.empty:
                 k1, k2, k3, k4 = st.columns(4)
                 avg_age = df_p['wiek'].mean() if 'wiek' in df_p.columns else 0
@@ -681,7 +654,6 @@ if data_sheets:
                             scat = df_p[df_p['gole']>0]
                             if not scat.empty: st.plotly_chart(px.scatter(scat, x='minuty', y='gole', size='gole', hover_name='imię i nazwisko', color='pozycja', title="Efektywność"), use_container_width=True)
 
-            # --- NOWY WIZUALNY TERMINARZ ZE STADIONAMI I STRZELCAMI ---
             with tab_matches:
                 st.subheader("Terminarz")
                 team_matches = []
@@ -695,7 +667,7 @@ if data_sheets:
                 if team_matches:
                     for m in team_matches:
                         h, g, res, k = m['Gospodarze'], m['Goście'], m['Wynik'], m['Kolejka']
-                        stadion = m.get('Stadion', '') # Pobieranie stadionu
+                        stadion = m.get('Stadion', '')
                         scorers_h = ", ".join(m['Strzelcy_H'])
                         scorers_a = ", ".join(m['Strzelcy_A'])
                         
@@ -712,7 +684,6 @@ if data_sheets:
 
                         with st.container():
                             st.markdown(f"**Kolejka {k}**")
-                            # Kolumny: Logo H | Info H | Wynik | Info A | Logo A
                             c1, c2, c3, c4, c5 = st.columns([1, 3.5, 2, 3.5, 1])
                             
                             with c1: 
@@ -738,6 +709,5 @@ if data_sheets:
                                 if lg_g: st.image(lg_g, width=50)
                             st.divider()
                 else: st.info("Brak meczów.")
-
-
-
+else:
+    st.error(f"Nie znaleziono {EXCEL_FILE}")
