@@ -481,11 +481,13 @@ if data_sheets:
             else: st.info("Brak kolejek.")
 
     elif page == "🎯 Strzelcy":
-        # --- FIX DLA BILBAO (i innych) NA POZIOMIE MODUŁU ---
+        # --- FIX: Dodajemy Bilbao i inne brakujące herby na sztywno ---
         CLUB_LOGOS_RAW.update({
             "athletic": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
             "athletic club": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
-            "bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg"
+            "bilbao": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
+            "bologna": "https://upload.wikimedia.org/wikipedia/en/5/5b/Bologna_F.C._1909_logo.svg",
+            "sturm": "https://upload.wikimedia.org/wikipedia/commons/c/cc/SK_Sturm_Graz_Logo.svg"
         })
 
         st.markdown("## 🎯 Najskuteczniejsi Strzelcy Ligi Mistrzów")
@@ -496,25 +498,31 @@ if data_sheets:
             
             # --- 1. PRZYGOTOWANIE DANYCH ---
             
-            # Przypisanie klubu (z Mapy lub z kolumny)
-            if 'imię i nazwisko' in df_s.columns:
-                def resolve_club(row):
-                    # Najpierw szukamy w kolumnie 'klub' w arkuszu strzelcy
-                    if 'klub' in row and pd.notna(row['klub']):
-                        return str(row['klub'])
-                    # Jak nie ma, szukamy w mapie piłkarzy
-                    name = str(row.get('imię i nazwisko', '')).strip()
-                    # Próba exact match
-                    if name.lower() in player_club_map:
-                        return player_club_map[name.lower()]
-                    # Próba partial match (dla literówek)
-                    for p_key, team in player_club_map.items():
-                        if name.lower() in p_key or p_key in name.lower():
-                            return team
-                    return None
+            # Funkcja do szukania klubu piłkarza
+            def resolve_club(row):
+                # 1. Sprawdź czy jest kolumna 'klub' w Excelu
+                if 'klub' in row and pd.notna(row['klub']):
+                    return str(row['klub'])
+                
+                # 2. Jeśli nie, szukaj w mapie piłkarzy (zbudowanej wcześniej z arkuszy drużyn)
+                name = str(row.get('imię i nazwisko', '')).strip()
+                # Najpierw dokładne dopasowanie
+                if name.lower() in player_club_map:
+                    return player_club_map[name.lower()]
+                
+                # Potem szukanie fragmentu (np. "Lewandowski" w "Robert Lewandowski")
+                for p_key, team in player_club_map.items():
+                    if name.lower() in p_key or p_key in name.lower():
+                        return team
+                return "" # Brak klubu
 
+            # Aplikujemy logikę
+            if 'imię i nazwisko' in df_s.columns:
                 df_s['Klub_Raw'] = df_s.apply(resolve_club, axis=1)
                 df_s['Klub_Logo'] = df_s['Klub_Raw'].apply(get_club_logo_url)
+            else:
+                df_s['Klub_Raw'] = ""
+                df_s['Klub_Logo'] = None
             
             # Flagi narodowości
             col_nat = next((c for c in df_s.columns if c in ['kraj', 'narodowość']), None)
@@ -523,7 +531,7 @@ if data_sheets:
             else:
                 df_s['Flaga_Img'] = ""
 
-            # Gole
+            # Gole (konwersja na liczby całkowite)
             col_gole = next((c for c in df_s.columns if c in ['gole', 'liczba goli', 'bramki']), None)
             if col_gole:
                 df_s['Gole'] = pd.to_numeric(df_s[col_gole], errors='coerce').fillna(0).astype(int)
@@ -533,49 +541,57 @@ if data_sheets:
             
             # Sortowanie
             df_s = df_s.sort_values('Gole', ascending=False).reset_index(drop=True)
-            df_s.index += 1  # Miejsce od 1
             
-            # --- 2. PODIUM (WIZUALNE KARTY) ---
+            # --- 2. PODIUM (KARTY) ---
             top3 = df_s.head(3)
             if not top3.empty:
                 cols = st.columns(3)
                 medals = ["🥇", "🥈", "🥉"]
-                colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+                colors = ["#FFD700", "#C0C0C0", "#CD7F32"] # Złoto, Srebro, Brąz
                 
                 for i, (idx, row) in enumerate(top3.iterrows()):
                     with cols[i]:
-                        with st.container():
-                            st.markdown(f"""
-                            <div style="background-color:rgba(255,255,255,0.05); border: 2px solid {colors[i]}; border-radius:15px; padding:15px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                <div style="font-size:2.5em; margin-bottom:5px;">{medals[i]}</div>
-                                <div style="font-weight:bold; font-size:1.2em; margin-bottom:5px;">{row['imię i nazwisko']}</div>
-                                <div style="margin-bottom:10px;">{row['Flaga_Img']}</div>
-                                <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:10px;">
-                                    <img src="{row['Klub_Logo'] or ''}" width="40" style="vertical-align:middle;">
-                                    <span style="font-size:0.9em; color:#888;">{row['Klub_Raw'] or ''}</span>
-                                </div>
-                                <div style="font-size:2em; font-weight:900; color:{colors[i]};">{row['Gole']} <span style="font-size:0.4em; color:gray;">GOLI</span></div>
+                        # Pobieramy logo (jeśli brak, puste)
+                        logo_src = row['Klub_Logo'] if row['Klub_Logo'] else ""
+                        logo_html = f'<img src="{logo_src}" width="40" style="vertical-align:middle;">' if logo_src else "⚽"
+                        
+                        st.markdown(f"""
+                        <div style="background-color:rgba(255,255,255,0.05); border: 2px solid {colors[i]}; border-radius:15px; padding:15px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                            <div style="font-size:2.5em; margin-bottom:5px;">{medals[i]}</div>
+                            <div style="font-weight:bold; font-size:1.2em; margin-bottom:5px; height: 50px; display:flex; align-items:center; justify-content:center;">{row['imię i nazwisko']}</div>
+                            <div style="margin-bottom:10px;">{row['Flaga_Img']}</div>
+                            <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:10px;">
+                                {logo_html}
+                                <span style="font-size:0.9em; color:#888;">{row['Klub_Raw']}</span>
                             </div>
-                            """, unsafe_allow_html=True)
+                            <div style="font-size:2em; font-weight:900; color:{colors[i]};">{row['Gole']} <span style="font-size:0.4em; color:gray;">GOLI</span></div>
+                        </div>
+                        """, unsafe_allow_html=True)
             
             st.divider()
 
-            # --- 3. TABELA (STYLISTYKA CSS) ---
+            # --- 3. TABELA HTML (STYLISTYKA) ---
             
-            # Generowanie wierszy HTML
+            # Styl CSS
             table_html = """
             <style>
-                .scorers-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-                .scorers-table th { text-align: left; padding: 10px; color: #888; font-size: 0.9em; text-transform: uppercase; border-bottom: 2px solid #444; }
-                .scorers-table td { padding: 12px; background-color: rgba(255,255,255,0.03); vertical-align: middle; border-top: 1px solid #333; border-bottom: 1px solid #333; }
-                .scorers-table tr:hover td { background-color: rgba(255,255,255,0.08); transition: 0.2s; }
-                .rank-col { font-weight: bold; color: #aaa; width: 50px; text-align: center; }
-                .player-col { font-weight: bold; font-size: 1.1em; }
-                .club-col { color: #ccc; }
-                .goals-col { font-weight: 900; font-size: 1.4em; color: #4CAF50; text-align: center; width: 80px; }
-                .goal-bar { height: 6px; background: #4CAF50; border-radius: 3px; margin-top: 5px; opacity: 0.7; }
-                .logo-img { width: 30px; height: 30px; object-fit: contain; vertical-align: middle; margin-right: 10px; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3)); }
+                .scorers-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-family: sans-serif; }
+                .scorers-table th { text-align: left; padding: 12px; color: #888; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #444; }
+                .scorers-table td { padding: 12px; background-color: rgba(255,255,255,0.03); vertical-align: middle; border-top: 1px solid #333; border-bottom: 1px solid #333; font-size: 15px; }
+                .scorers-table tr:hover td { background-color: rgba(255,255,255,0.08); transition: 0.2s; cursor: default; }
+                /* Zaokrąglenie rogów wierszy */
+                .scorers-table td:first-child { border-left: 1px solid #333; border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+                .scorers-table td:last-child { border-right: 1px solid #333; border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+                
+                .rank-col { font-weight: bold; color: #666; width: 50px; text-align: center; font-size: 1.2em; }
+                .player-name { font-weight: 600; color: #eee; margin-left: 8px; }
+                .club-name { color: #aaa; font-size: 0.9em; margin-left: 8px; }
+                .goals-col { font-weight: 900; font-size: 1.4em; color: #4CAF50; text-align: center; width: 100px; }
+                .goal-bar-bg { width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; margin-top: 6px; }
+                .goal-bar-fill { height: 100%; background: #4CAF50; border-radius: 2px; }
+                .club-logo-small { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; }
             </style>
+            
             <table class="scorers-table">
                 <thead>
                     <tr>
@@ -588,41 +604,50 @@ if data_sheets:
                 <tbody>
             """
             
-            max_goals = df_s['Gole'].max()
+            max_goals = df_s['Gole'].max() if not df_s.empty else 1
             
             for rank, (idx, row) in enumerate(df_s.iterrows(), 1):
-                # Pomiń top 3 w liście jeśli chcesz, ale zazwyczaj pokazuje się wszystkich. Tu pokazujemy wszystkich.
+                # Logo klubu
+                if row["Klub_Logo"]:
+                    c_logo = f'<img src="{row["Klub_Logo"]}" class="club-logo-small">'
+                else:
+                    c_logo = '<span style="font-size:1.2em;">⚽</span>'
                 
-                club_logo_html = f'<img src="{row["Klub_Logo"]}" class="logo-img">' if row["Klub_Logo"] else "⚽"
-                bar_width = int((row['Gole'] / max_goals) * 100)
+                # Pasek postępu goli
+                pct = (row['Gole'] / max_goals) * 100
                 
                 table_html += f"""
                 <tr>
                     <td class="rank-col">{rank}</td>
-                    <td class="player-col">
-                        <div style="display:flex; align-items:center; gap:10px;">
+                    <td>
+                        <div style="display:flex; align-items:center;">
                             {row['Flaga_Img']}
-                            <span>{row['imię i nazwisko']}</span>
+                            <span class="player-name">{row['imię i nazwisko']}</span>
                         </div>
                     </td>
-                    <td class="club-col">
+                    <td>
                         <div style="display:flex; align-items:center;">
-                            {club_logo_html}
-                            <span>{row['Klub_Raw'] or ''}</span>
+                            {c_logo}
+                            <span class="club-name">{row['Klub_Raw']}</span>
                         </div>
                     </td>
                     <td class="goals-col">
                         {row['Gole']}
-                        <div class="goal-bar" style="width: {bar_width}%;"></div>
+                        <div class="goal-bar-bg">
+                            <div class="goal-bar-fill" style="width: {pct}%;"></div>
+                        </div>
                     </td>
                 </tr>
                 """
             
             table_html += "</tbody></table>"
+            
+            # --- KLUCZOWA LINIJKA: Wyświetlanie HTML ---
             st.markdown(table_html, unsafe_allow_html=True)
             
         else:
             st.warning("⚠️ Nie znaleziono zakładki 'Strzelcy' w pliku Excel.")
+            
     elif page == "⚽ Drużyny":
         st.title("Profil Drużyny")
         
@@ -763,3 +788,4 @@ if data_sheets:
                                 if lg_g: st.image(lg_g, width=50)
                             st.divider()
                 else: st.info("Brak meczów.")
+
