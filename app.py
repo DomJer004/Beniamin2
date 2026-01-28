@@ -634,7 +634,25 @@ if data_sheets:
 
             with tab_squad:
                 if not df_p.empty:
-                    # Wybór kolumn
+                    # --- SORTOWANIE PO FORMACJACH ---
+                    # 1. Bramkarz, 2. Obrońca, 3. Pomocnik, 4. Napastnik
+                    pos_map = {'bramkarz': 1, 'obrońca': 2, 'pomocnik': 3, 'napastnik': 4}
+                    
+                    def get_sort_val(row):
+                        # Pobieramy pozycję, czyścimy i mapujemy na liczbę
+                        pos = str(row.get('pozycja', '')).lower().strip()
+                        return pos_map.get(pos, 5) # 5 dla nieznanych/trenerów
+                    
+                    # Tworzymy tymczasową kolumnę do sortowania
+                    df_p['pos_sort'] = df_p.apply(get_sort_val, axis=1)
+                    
+                    # Sortujemy: Najpierw wg pozycji (Bramkarz -> Napastnik), potem wg numeru
+                    if 'numer' in df_p.columns:
+                        df_p = df_p.sort_values(['pos_sort', 'numer'], ascending=[True, True])
+                    else:
+                        df_p = df_p.sort_values('pos_sort', ascending=True)
+
+                    # Wybór kolumn do wyświetlenia
                     desired = ['numer', 'flaga_html', 'imię i nazwisko', 'pozycja', 'mecze', 'minuty', 'gole', 'asysty', 
                                'kanadyjka', 'żółte kartki', 'czerwone kartki', 'czyste konta', 'obronione karne']
                     
@@ -650,7 +668,7 @@ if data_sheets:
                         'minuty': 'Minuty ⏱️',
                         'gole': 'Gole ⚽',
                         'asysty': 'Asysty 🅰️',
-                        'kanadyjka': 'Kanadyjka (⚽+🅰️)', # Zmiana o którą prosiłeś
+                        'kanadyjka': 'Kanadyjka (⚽+🅰️)',
                         'żółte kartki': 'Żółte 🟨',
                         'czerwone kartki': 'Czerwone 🟥',
                         'czyste konta': 'Czyste Konta 🧤',
@@ -658,10 +676,6 @@ if data_sheets:
                     }
                     
                     disp = df_p[final].rename(columns=rename_map)
-                    
-                    # Sortowanie po numerze (od 1 w górę)
-                    if '#' in disp.columns:
-                        disp = disp.sort_values('#', ascending=True)
                     
                     # Renderowanie tabeli HTML
                     st.markdown(disp.to_html(escape=False, index=False, classes="table table-striped"), unsafe_allow_html=True)
