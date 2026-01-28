@@ -7,7 +7,7 @@ st.set_page_config(page_title="Liga Mistrzów 25/26", layout="wide", page_icon="
 
 EXCEL_FILE = "Liga Mistrzów 25_26.xlsx"
 
-# --- MAPA KODÓW KRAJÓW (Dla API FlagCDN) ---
+# --- 1. MAPA KRAJÓW (Dla API FlagCDN - kody ISO) ---
 COUNTRY_CODES = {
     # Regiony UK
     "Anglia": "gb-eng", "Szkocja": "gb-sct", "Walia": "gb-wls", "Irlandia Północna": "gb-nir",
@@ -36,7 +36,8 @@ COUNTRY_CODES = {
     "Kamerun": "cm", "Ghana": "gh", "Wybrzeże Kości Słoniowej": "ci",
     "Algieria": "dz", "Tunezja": "tn", "Mali": "ml", "Gabon": "ga",
     "Gambia": "gm", "Kongo": "cg", "Demokratyczna Republika Konga": "cd",
-    "Gwinea": "gn", "Gwinea Równikowa": "gq", "Gwinea Bissau": "gw",
+    "Demokratyczne Republika Konga": "cd", "Gwinea": "gn", 
+    "Gwinea Równikowa": "gq", "Gwinea Bissau": "gw",
     "Burkina Faso": "bf", "RPA": "za", "Zimbabwe": "zw",
     "Republika Zielonego Przylądka": "cv", "Mozambik": "mz", "Libia": "ly",
     
@@ -45,16 +46,41 @@ COUNTRY_CODES = {
     "Australia": "au", "Iran": "ir", "Izrael": "il", "Syria": "sy"
 }
 
-# --- MAPA KLUB -> KRAJ (Do Tabeli Ligowej) ---
+# --- 2. MAPA KLUB -> KRAJ (Kompletna dla Ligi Mistrzów) ---
+# Służy do przypisania flagi w Tabeli Ligowej
 CLUB_TO_COUNTRY = {
-    "Arsenal": "Anglia", "Aston Villa": "Anglia", "Liverpool": "Anglia", "Manchester City": "Anglia", "Chelsea": "Anglia", "Tottenham Hotspur": "Anglia", "Newcastle United": "Anglia",
-    "Real Madryt": "Hiszpania", "Barcelona": "Hiszpania", "Atlético Madryt": "Hiszpania", "Girona": "Hiszpania", "Athletic Bilbao": "Hiszpania", "Villarreal": "Hiszpania",
-    "Bayern Monachium": "Niemcy", "Borussia Dortmund": "Niemcy", "Bayer Leverkusen": "Niemcy", "RB Leipzig": "Niemcy", "Stuttgart": "Niemcy", "Eintracht Frankfurt": "Niemcy",
-    "Inter Mediolan": "Włochy", "AC Milan": "Włochy", "Juventus": "Włochy", "Atalanta": "Włochy", "Bologna": "Włochy", "Napoli": "Włochy",
-    "Paris Saint-Germain": "Francja", "Monaco": "Francja", "Brest": "Francja", "Lille": "Francja", "Olympique Marsylia": "Francja",
-    "Sporting CP": "Portugalia", "Benfica": "Portugalia",
-    "PSV Eindhoven": "Holandia", "Feyenoord": "Holandia", "Ajax": "Holandia",
-    "Club Brugge": "Belgia", "Union Saint-Gilloise": "Belgia",
+    # Anglia
+    "Arsenal": "Anglia", "Aston Villa": "Anglia", "Liverpool": "Anglia", 
+    "Manchester City": "Anglia", "Chelsea": "Anglia", "Tottenham Hotspur": "Anglia", 
+    "Newcastle United": "Anglia", "Newcastle": "Anglia",
+    
+    # Hiszpania
+    "Real Madryt": "Hiszpania", "Barcelona": "Hiszpania", "Atlético Madryt": "Hiszpania", "Atletico Madryt": "Hiszpania",
+    "Girona": "Hiszpania", "Athletic Bilbao": "Hiszpania", "Villarreal": "Hiszpania",
+    
+    # Niemcy
+    "Bayern Monachium": "Niemcy", "Borussia Dortmund": "Niemcy", "Bayer Leverkusen": "Niemcy", 
+    "RB Leipzig": "Niemcy", "Stuttgart": "Niemcy", "Eintracht Frankfurt": "Niemcy",
+    
+    # Włochy
+    "Inter Mediolan": "Włochy", "AC Milan": "Włochy", "Juventus": "Włochy", 
+    "Atalanta": "Włochy", "Bologna": "Włochy", "Napoli": "Włochy",
+    
+    # Francja
+    "Paris Saint-Germain": "Francja", "PSG": "Francja", "Monaco": "Francja", 
+    "Brest": "Francja", "Lille": "Francja", "Olympique Marsylia": "Francja", "Marsylia": "Francja",
+    
+    # Portugalia
+    "Sporting CP": "Portugalia", "Benfica": "Portugalia", "FC Porto": "Portugalia",
+    
+    # Holandia
+    "PSV Eindhoven": "Holandia", "PSV": "Holandia", "Feyenoord": "Holandia", "Ajax": "Holandia",
+    
+    # Belgia
+    "Club Brugge": "Belgia", "Brugge": "Belgia", 
+    "Union Saint-Gilloise": "Belgia", "USG": "Belgia",
+    
+    # Pozostałe
     "Celtic": "Szkocja",
     "Sturm Graz": "Austria", "RB Salzburg": "Austria",
     "Szachtar Donieck": "Ukraina",
@@ -63,20 +89,27 @@ CLUB_TO_COUNTRY = {
     "Young Boys": "Szwajcaria",
     "Sparta Praga": "Czechy", "Slavia Praga": "Czechy",
     "Slovan Bratysława": "Słowacja",
-    "Galatasaray": "Turcja",
-    "Kopenhaga": "Dania",
-    "Bodo/Glimt": "Norwegia",
-    "Olympiacos": "Grecja",
+    "Galatasaray": "Turcja", "Fenerbahce": "Turcja",
+    "Kopenhaga": "Dania", "FC Kopenhaga": "Dania",
+    "Bodo/Glimt": "Norwegia", "Bodo": "Norwegia",
+    "Olympiacos": "Grecja", "PAOK": "Grecja",
     "Karabach": "Azerbejdżan",
     "Pafos": "Cypr",
-    "Kairat Ałmaty": "Kazachstan"
+    "Kairat Ałmaty": "Kazachstan", "Kairat": "Kazachstan"
 }
 
 def get_flag_url(nationality_str):
+    """Pobiera URL flagi z FlagCDN na podstawie nazwy kraju."""
     if not isinstance(nationality_str, str) or not nationality_str.strip():
         return None
+    # Bierzemy pierwszy kraj z listy (dla podwójnych obywatelstw)
     first_country = nationality_str.replace("/", ",").split(",")[0].strip()
-    if "Konaga" in first_country or "Konga" in first_country: first_country = "Demokratyczna Republika Konga"
+    
+    # Poprawki nazw z Excela
+    if "Konaga" in first_country or "Konga" in first_country: 
+        first_country = "Demokratyczna Republika Konga"
+    if "Niemcu" in first_country: first_country = "Niemcy"
+    
     code = COUNTRY_CODES.get(first_country)
     return f"https://flagcdn.com/w40/{code}.png" if code else None
 
@@ -92,9 +125,11 @@ def load_all_data(file_path):
         return None
 
 def clean_matches_table(df, start_row_idx):
+    """Czyści tabelę meczów, usuwa puste kolumny i wiersze."""
     header_row = df.iloc[start_row_idx]
     new_columns, indices = [], []
     seen = {}
+    
     for i, c in enumerate(header_row):
         if pd.isna(c) or str(c).strip() == "" or str(c).lower() == "nan": continue
         col_str = str(c).strip()
@@ -104,35 +139,43 @@ def clean_matches_table(df, start_row_idx):
     
     matches = df.iloc[start_row_idx+1:, indices].copy()
     matches.columns = new_columns
-    return matches.dropna(subset=['kolejka']) if 'kolejka' in matches.columns else matches
+    
+    if 'kolejka' in matches.columns:
+        return matches.dropna(subset=['kolejka'])
+    return matches
 
 def process_team_sheet(df, team_name):
     try:
-        # 1. Znajdź początek meczów
+        # 1. Znajdź początek meczów (szukamy 'kolejka')
         match_split = df.index[df.iloc[:, 0].astype(str).str.lower() == 'kolejka'].tolist()
         match_idx = match_split[0] if match_split else len(df)
         
         df_top = df.iloc[:match_idx].copy()
         
-        # 2. Znajdź podział Piłkarze / Trenerzy (szukamy słowa 'rola')
+        # 2. Znajdź podział Piłkarze / Trenerzy (szukamy słowa 'funkcja')
         staff_idx = -1
         for idx, row in df_top.iterrows():
-            if row.astype(str).str.contains('rola', case=False).any():
+            # Szukamy słowa 'funkcja' w dowolnej kolumnie wiersza
+            if row.astype(str).str.contains('funkcja', case=False).any():
                 staff_idx = idx
                 break
         
-        # 3. Rozdziel dane
+        # 3. Rozdziel dane na Piłkarzy i Sztab
         if staff_idx != -1:
-            # Piłkarze są powyżej trenerów
+            # Piłkarze są powyżej wiersza z "funkcja"
             df_players = df_top.loc[:staff_idx-1].dropna(how='all')
             
-            # Trenerzy
+            # Trenerzy zaczynają się od wiersza z "funkcja"
             df_staff_raw = df_top.loc[staff_idx:]
-            new_header = df_staff_raw.iloc[0]
+            new_header = df_staff_raw.iloc[0] # To jest wiersz z nagłówkami (lp, imię, funkcja...)
             df_staff = df_staff_raw[1:].copy()
             df_staff.columns = [str(c).lower().strip() for c in new_header]
-            df_staff = df_staff.dropna(subset=['rola'])
+            
+            # Usuwamy puste wiersze w sztabie (tam gdzie nie ma wpisanej funkcji)
+            if 'funkcja' in df_staff.columns:
+                df_staff = df_staff.dropna(subset=['funkcja'])
         else:
+            # Jeśli nie ma "funkcji", wszystko to piłkarze
             df_players = df_top.dropna(how='all')
             df_staff = pd.DataFrame()
 
@@ -148,15 +191,11 @@ def process_team_sheet(df, team_name):
             
             if 'narodowość' in df_players.columns:
                 df_players['flaga_url'] = df_players['narodowość'].apply(get_flag_url)
-            else:
-                df_players['flaga_url'] = None
 
         # 5. Czyszczenie Trenerów
         if not df_staff.empty:
             if 'narodowość' in df_staff.columns:
                 df_staff['flaga_url'] = df_staff['narodowość'].apply(get_flag_url)
-            else:
-                df_staff['flaga_url'] = None
 
         # 6. Mecze
         df_matches = clean_matches_table(df, match_idx)
@@ -179,20 +218,21 @@ if data_sheets:
     
     page = st.sidebar.radio("Wybierz widok", ["🏆 Tabela Ligowa", "🎯 Strzelcy", "⚽ Drużyny"])
     
-    # --- TABELA LIGOWA ---
+    # --- WIDOK: TABELA LIGOWA ---
     if page == "🏆 Tabela Ligowa":
         st.title("Tabela Ligi Mistrzów 25/26")
         if 'Tabela' in data_sheets:
             df_tabela = data_sheets['Tabela']
+            # Usuwamy techniczne kolumny (Unnamed)
             df_tabela = df_tabela.loc[:, ~df_tabela.columns.str.contains('^Unnamed')]
             
-            # Dodajemy flagi klubów
+            # Dopasowanie flagi na podstawie nazwy klubu
             if 'klub' in df_tabela.columns:
                 df_tabela['kraj_klubu'] = df_tabela['klub'].apply(lambda x: CLUB_TO_COUNTRY.get(str(x).strip(), ""))
-                df_tabela['flaga_url'] = df_tabela['kraj_klubu'].apply(get_flag_url)
+                df_tabela['logo_url'] = df_tabela['kraj_klubu'].apply(get_flag_url)
             
-            # Ukrywamy kolumnę 'logo' i 'kraj_klubu' (zostawiamy tylko obrazek flagi)
-            cols = ['Miejsce', 'flaga_url', 'klub', 'mecze', 'punkty', 'strzelone', 'stracone', 'bilans', 'wygrane', 'remisy', 'porażki']
+            # Konfiguracja kolumn
+            cols = ['Miejsce', 'logo_url', 'klub', 'mecze', 'punkty', 'strzelone', 'stracone', 'bilans', 'wygrane', 'remisy', 'porażki']
             final_cols = [c for c in cols if c in df_tabela.columns]
             
             st.dataframe(
@@ -200,21 +240,23 @@ if data_sheets:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "flaga_url": st.column_config.ImageColumn("", width="small"),
+                    "logo_url": st.column_config.ImageColumn("Logo", width="small"), # Ukrywamy tekst, pokazujemy obrazek
                     "bilans": st.column_config.ProgressColumn("Bilans", min_value=-20, max_value=50, format="%d"),
                     "Miejsce": st.column_config.NumberColumn("#", format="%d")
                 }
             )
         else:
-            st.info("Brak danych.")
+            st.info("Brak arkusza Tabela.")
 
-    # --- STRZELCY ---
+    # --- WIDOK: STRZELCY ---
     elif page == "🎯 Strzelcy":
         st.title("Najlepsi Strzelcy")
         if 'Strzelcy' in data_sheets:
             df_strzelcy = data_sheets['Strzelcy']
+            
             if 'kraj' in df_strzelcy.columns:
                 df_strzelcy['flaga_url'] = df_strzelcy['kraj'].apply(get_flag_url)
+            
             if 'data urodzenia' in df_strzelcy.columns:
                 df_strzelcy['data urodzenia'] = pd.to_datetime(df_strzelcy['data urodzenia'], errors='coerce').dt.date
 
@@ -228,7 +270,7 @@ if data_sheets:
                 }
             )
 
-    # --- DRUŻYNY ---
+    # --- WIDOK: DRUŻYNY ---
     elif page == "⚽ Drużyny":
         st.title("Statystyki Drużyn")
         selected_team = st.sidebar.selectbox("Wybierz drużynę", team_names)
@@ -242,17 +284,18 @@ if data_sheets:
             if not df_p.empty:
                 goals = df_p['gole'].sum() if 'gole' in df_p.columns else 0
                 matches = len(df_m)
-                st.columns(2)[0].metric("Gole", goals)
-                st.columns(2)[1].metric("Mecze", matches)
+                st.columns(2)[0].metric("Gole Zespołu", goals)
+                st.columns(2)[1].metric("Rozegrane Mecze", matches)
             
-            tab1, tab2, tab3 = st.tabs(["Kadra i Sztab", "Terminarz", "Wykresy"])
+            tab1, tab2, tab3 = st.tabs(["Kadra i Sztab", "Terminarz", "Statystyki"])
             
             with tab1:
-                # 1. Tabela Piłkarzy
+                # 1. PIŁKARZE
                 st.subheader("Zawodnicy")
                 if not df_p.empty:
                     cols_p = ['numer', 'flaga_url', 'imię i nazwisko', 'pozycja', 'narodowość', 'wiek', 'mecze', 'gole', 'asysty', 'kanadyjka']
                     final_p = [c for c in cols_p if c in df_p.columns]
+                    
                     st.dataframe(
                         df_p[final_p],
                         use_container_width=True, hide_index=True,
@@ -262,13 +305,17 @@ if data_sheets:
                             "numer": st.column_config.NumberColumn("#", format="%d")
                         }
                     )
+                else:
+                    st.warning("Brak danych zawodników.")
                 
-                # 2. Tabela Trenerów (jeśli istnieje)
+                # 2. SZTAB (TRENERZY)
                 if not df_s.empty:
-                    st.divider()
+                    st.markdown("---")
                     st.subheader("Sztab szkoleniowy")
-                    cols_s = ['flaga_url', 'imię i nazwisko', 'rola', 'narodowość', 'wiek', 'mecze', 'punkty']
+                    # Wybieramy sensowne kolumny dla trenera
+                    cols_s = ['flaga_url', 'imię i nazwisko', 'funkcja', 'narodowość', 'wiek', 'mecze', 'punkty']
                     final_s = [c for c in cols_s if c in df_s.columns]
+                    
                     st.dataframe(
                         df_s[final_s],
                         use_container_width=True, hide_index=True,
@@ -285,44 +332,49 @@ if data_sheets:
             
             with tab3:
                 if not df_p.empty:
-                    st.markdown("### Analiza Statystyczna")
+                    st.markdown("### Szczegółowe statystyki")
+                    
                     c1, c2 = st.columns(2)
                     
-                    # Wykres 1: Minuty
+                    # WYKRES 1: MINUTY (Statystyczny Bar Chart)
                     with c1:
-                        top_min = df_p.nlargest(15, 'minuty')
-                        fig_min = px.bar(top_min, x='minuty', y='imię i nazwisko', orientation='h', 
-                                         title="Najwięcej minut na boisku", color='pozycja')
-                        fig_min.update_layout(yaxis={'categoryorder':'total ascending'})
-                        st.plotly_chart(fig_min, use_container_width=True)
+                        if 'minuty' in df_p.columns:
+                            top_min = df_p.nlargest(15, 'minuty').sort_values('minuty', ascending=True)
+                            fig_min = px.bar(top_min, x='minuty', y='imię i nazwisko', orientation='h', 
+                                             title="Najwięcej minut na boisku", text='minuty')
+                            fig_min.update_traces(marker_color='#1f77b4')
+                            st.plotly_chart(fig_min, use_container_width=True)
                         
-                    # Wykres 2: Gole
+                    # WYKRES 2: GOLE
                     with c2:
                         scorers = df_p[df_p['gole'] > 0].sort_values('gole', ascending=True)
                         if not scorers.empty:
                             fig_gol = px.bar(scorers, x='gole', y='imię i nazwisko', orientation='h', 
-                                             title="Najlepsi Strzelcy", text='gole', color_discrete_sequence=['#ef553b'])
+                                             title="Strzelcy", text='gole')
+                            fig_gol.update_traces(marker_color='#d62728')
                             st.plotly_chart(fig_gol, use_container_width=True)
                         else:
-                            st.info("Brak bramek w zespole.")
+                            st.info("Brak bramek.")
 
                     c3, c4 = st.columns(2)
                     
-                    # Wykres 3: Asysty
+                    # WYKRES 3: ASYSTY
                     with c3:
                         assisters = df_p[df_p['asysty'] > 0].sort_values('asysty', ascending=True)
                         if not assisters.empty:
                             fig_ast = px.bar(assisters, x='asysty', y='imię i nazwisko', orientation='h',
-                                             title="Najlepsi Asystenci", text='asysty', color_discrete_sequence=['#00cc96'])
+                                             title="Asystenci", text='asysty')
+                            fig_ast.update_traces(marker_color='#2ca02c')
                             st.plotly_chart(fig_ast, use_container_width=True)
                         else:
                             st.info("Brak asyst.")
                             
-                    # Wykres 4: Kartki (jeśli są dane)
+                    # WYKRES 4: KARTKI
                     with c4:
                         if 'żółte kartki' in df_p.columns:
                             cards = df_p[df_p['żółte kartki'] > 0].sort_values('żółte kartki', ascending=True)
                             if not cards.empty:
                                 fig_card = px.bar(cards, x='żółte kartki', y='imię i nazwisko', orientation='h',
-                                                  title="Żółte kartki", text='żółte kartki', color_discrete_sequence=['#ffd700'])
+                                                  title="Żółte kartki", text='żółte kartki')
+                                fig_card.update_traces(marker_color='#ff7f0e')
                                 st.plotly_chart(fig_card, use_container_width=True)
